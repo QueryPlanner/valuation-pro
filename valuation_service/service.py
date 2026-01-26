@@ -1,7 +1,13 @@
 from typing import Dict, Any, Optional
 import logging
 from .connectors import BaseConnector
-from valuation_engine.fcff_ginzu.engine import compute_ginzu, GinzuInputs, GinzuOutputs
+from valuation_engine.fcff_ginzu.engine import (
+    compute_ginzu, 
+    GinzuInputs, 
+    GinzuOutputs,
+    RnDCapitalizationInputs,
+    compute_rnd_capitalization_adjustments
+)
 
 logger = logging.getLogger(__name__)
 
@@ -13,159 +19,157 @@ class ValuationService:
         """
         Orchestrates the valuation process.
         """
-        financials = self.connector.get_financials(ticker)
-        market_data = self.connector.get_market_data(ticker)
+        # 1. Fetch normalized inputs from Connector
+        # This encapsulates source-specific logic (LTM, etc.)
+        fetched_inputs = self.connector.get_valuation_inputs(ticker)
         
-        inputs = self._map_data_to_inputs(ticker, financials, market_data, assumptions or {})
+        # 2. Map to GinzuInputs (Merging with assumptions)
+        inputs = self._prepare_ginzu_inputs(fetched_inputs, assumptions or {})
         
-        # Run engine
+        # 3. Run Engine
         outputs = compute_ginzu(inputs)
         
-        # Convert dataclass to dict for API response
+        # 4. Return results (Dict for API)
         return outputs.__dict__
 
-    def _map_data_to_inputs(
-        self, 
-        ticker: str, 
-        financials: Dict[str, Any], 
-        market_data: Dict[str, Any], 
-        assumptions: Dict[str, Any]
-    ) -> GinzuInputs:
+    def _prepare_ginzu_inputs(self, data: Dict[str, Any], assumptions: Dict[str, Any]) -> GinzuInputs:
         """
-        Maps raw connector data to GinzuInputs, applying defaults and overrides.
+        Merges fetched data with user assumptions and applies default heuristics.
+        Handles complex logic like R&D Capitalization.
         """
-        income = financials.get("income_statement", {})
-        balance = financials.get("balance_sheet", {})
         
-        # 1. Find most recent period
-        # Keys are dates. Sort and take latest.
-        # Assuming keys are comparable (strings 'YYYY-MM-DD' or Timestamps)
-        if not income:
-             raise ValueError(f"No income statement data found for {ticker}")
+        # --- 1. R&D Capitalization Logic ---
+        # If fetched data has history and user didn't disable it
+        rnd_history = data.get('rnd_history', [])
+        current_rnd = data.get('rnd_expense', 0.0)
         
-        latest_date = sorted(income.keys())[-1]
+        capitalize_rnd = assumptions.get('capitalize_rnd', False)
         
-        # Helpers to safely get values
-        def get_inc(field, default=0.0):
-            val = income[latest_date].get(field, default)
-            if val is None:
-                return default
-            try:
-                return float(val)
-            except (ValueError, TypeError):
-                return default
-            
-        def get_bal(field, default=0.0):
-            # Balance sheet might have different latest date? Usually same.
-            # If not, try latest available in balance sheet
-            if not balance: return default
-            bs_date = sorted(balance.keys())[-1]
-            val = balance[bs_date].get(field, default)
-            if val is None:
-                return default
-            try:
-                return float(val)
-            except (ValueError, TypeError):
-                return default
+        # Auto-enable if not specified and data exists
+        if 'capitalize_rnd' not in assumptions and current_rnd > 0 and len(rnd_history) > 0:
+             # Default behavior: Do not auto-capitalize unless requested, to match simple output first?
+             # Or match run_yf_valuation.py logic which had it disabled by default?
+             # Let's default to False unless user asks, for transparency.
+             capitalize_rnd = False
 
-        # 2. Extract Base Inputs
-        revenues = get_inc("Total Revenue") or get_inc("TotalRevenue")
-        ebit = get_inc("EBIT") or get_inc("Operating Income") or get_inc("OperatingIncome")
+        rnd_asset = 0.0
+        rnd_ebit_adj = 0.0
         
-        # Equity: Try "Total Equity Gross Minority Interest" first, then "Stockholders Equity"
-        book_equity = get_bal("Total Equity Gross Minority Interest") or get_bal("Stockholders Equity") or get_bal("TotalStockholderEquity")
-        
-        # Debt: "Total Debt"
-        book_debt = get_bal("Total Debt") or get_bal("TotalDebt")
-        
-        # Cash: "Cash And Cash Equivalents"
-        cash = get_bal("Cash And Cash Equivalents") or get_bal("CashAndCashEquivalents")
-        
-        # Non-Op Assets
-        # yfinance varies. "InvestmentProperties", "LongTermInvestments"?
-        # Be conservative: 0 unless explicit.
-        non_op = get_bal("Investment Properties") 
-        
-        minority = get_bal("Minority Interest") or get_bal("MinorityInterest")
-        
-        # Shares
-        # yfinance doesn't always put shares in balance sheet.
-        # But market_data often has 'sharesOutstanding' or we use 'market_cap / price'
-        shares = market_data.get("shares_outstanding")
-        if not shares:
-            # Derive from market cap and price
-            # CRITICAL: Check price > 0 to avoid ZeroDivisionError
-            price = market_data.get("price")
-            if market_data.get("market_cap") and price and price > 0:
-                shares = market_data["market_cap"] / price
-            else:
-                # Fallback to balance sheet 'Share Issued'? (Unreliable)
-                # shares = 1000000.0 # Critical fallback to avoid div/0, usually caught earlier
-                raise ValueError(f"Could not determine Share Count for {ticker}. Cannot calculate per-share value.")
-        
-        stock_price = market_data.get("price", 0.0)
-        risk_free = market_data.get("risk_free_rate", 0.04)
+        if capitalize_rnd:
+            try:
+                # Prepare past expenses (excluding current year from history if it overlaps?)
+                # rnd_history from connector is [Year0, Year-1, Year-2...] usually
+                # Engine needs [Year-1, Year-2, ...].
+                # Yahoo Connector provides ann_inc sorted newest first. 
+                # If current_rnd comes from LTM, and history comes from Annual, 
+                # we usually use the Annual history for amortization.
+                
+                # Heuristic: Take up to 5 years from history
+                amort_years = assumptions.get('rnd_amortization_years', 5)
+                past_rnd = []
+                # If the first element of history looks like current year, skip it?
+                # Simplify: Just take the first N from history provided by connector
+                for i in range(amort_years):
+                    val = rnd_history[i] if i < len(rnd_history) else 0.0
+                    past_rnd.append(val)
+                
+                rnd_inputs = RnDCapitalizationInputs(
+                    amortization_years=amort_years,
+                    current_year_rnd_expense=float(current_rnd),
+                    past_year_rnd_expenses=past_rnd
+                )
+                rnd_asset, rnd_ebit_adj = compute_rnd_capitalization_adjustments(rnd_inputs)
+            except Exception as e:
+                logger.warning(f"R&D Capitalization failed: {e}")
+                capitalize_rnd = False
 
-        # 3. Calculate Derived Defaults (Assumptions)
+        # --- 2. Base Financials ---
+        revenues = data.get('revenues_base', 0.0)
+        ebit = data.get('ebit_reported_base', 0.0)
         
-        # Tax Rates
-        pretax_income = get_inc("Pretax Income") or get_inc("PretaxIncome")
-        tax_provision = get_inc("Tax Provision") or get_inc("TaxProvision")
+        # Invested Capital Calculation for Sales/Cap Ratio
+        book_equity = data.get('book_equity', 0.0)
+        book_debt = data.get('book_debt', 0.0)
+        cash = data.get('cash', 0.0)
         
-        if pretax_income > 0:
-            tax_rate_effective = tax_provision / pretax_income
-            # Cap realistic bounds (0% to 50%)
-            tax_rate_effective = max(0.0, min(0.5, tax_rate_effective))
-        else:
-            tax_rate_effective = 0.20 # Fallback
-            
-        tax_rate_marginal = 0.25 # US Default
-        
-        # Sales to Capital
-        # Invested Capital = Book Equity + Book Debt - Cash
+        # Adjust Book Equity for R&D if capitalized
+        if capitalize_rnd:
+            book_equity += rnd_asset
+
         invested_capital = book_equity + book_debt - cash
-        if invested_capital > 0:
-            sales_to_capital = revenues / invested_capital
-        else:
-            sales_to_capital = 1.5 # Global average fallback
+        
+        sales_to_capital_actual = 1.5 # Default
+        if invested_capital > 0 and revenues > 0:
+            sales_to_capital_actual = revenues / invested_capital
             
         # Margins
-        current_margin = ebit / revenues if revenues > 0 else 0.10
+        # If capitalizing R&D, use adjusted EBIT
+        base_ebit_adj = ebit + rnd_ebit_adj if capitalize_rnd else ebit
+        current_margin = base_ebit_adj / revenues if revenues > 0 else 0.10
+
+        # --- 3. Defaults & Overrides ---
+        risk_free = data.get('risk_free_rate', 0.04)
         
-        # 4. Construct Inputs (with Overrides)
-        inputs = GinzuInputs(
+        # Helper to pick Assumption > Data > Default
+        def get_val(key, data_key, default):
+            if key in assumptions: return assumptions[key]
+            if data_key in data: return data[data_key]
+            return default
+
+        return GinzuInputs(
             revenues_base=revenues,
             ebit_reported_base=ebit,
             book_equity=book_equity,
             book_debt=book_debt,
             cash=cash,
-            non_operating_assets=assumptions.get("non_operating_assets", non_op),
-            minority_interests=assumptions.get("minority_interests", minority),
-            shares_outstanding=shares,
-            stock_price=stock_price,
+            non_operating_assets=get_val("non_operating_assets", "cross_holdings", 0.0),
+            minority_interests=get_val("minority_interests", "minority_interest", 0.0),
+            shares_outstanding=data.get('shares_outstanding', 1.0), # Avoid div/0
+            stock_price=data.get('stock_price', 0.0),
             
-            # Assumptions
-            rev_growth_y1=assumptions.get("rev_growth_y1", risk_free), # Conservative default
-            rev_cagr_y2_5=assumptions.get("rev_cagr_y2_5", risk_free),
+            # Value Drivers
+            rev_growth_y1=assumptions.get("rev_growth_y1", 0.05),
+            rev_cagr_y2_5=assumptions.get("rev_cagr_y2_5", 0.05),
             margin_y1=assumptions.get("margin_y1", current_margin),
             margin_target=assumptions.get("margin_target", current_margin),
             margin_convergence_year=assumptions.get("margin_convergence_year", 5),
-            sales_to_capital_1_5=assumptions.get("sales_to_capital_1_5", sales_to_capital),
-            sales_to_capital_6_10=assumptions.get("sales_to_capital_6_10", sales_to_capital),
+            
+            sales_to_capital_1_5=assumptions.get("sales_to_capital_1_5", sales_to_capital_actual),
+            sales_to_capital_6_10=assumptions.get("sales_to_capital_6_10", sales_to_capital_actual),
+            
             riskfree_rate_now=assumptions.get("riskfree_rate_now", risk_free),
-            wacc_initial=assumptions.get("wacc_initial", 0.08), # Placeholder default
-            tax_rate_effective=assumptions.get("tax_rate_effective", tax_rate_effective),
-            tax_rate_marginal=assumptions.get("tax_rate_marginal", tax_rate_marginal),
+            wacc_initial=assumptions.get("wacc_initial", 0.08),
             
-            # Toggles
-            capitalize_rnd=assumptions.get("capitalize_rnd", False),
+            tax_rate_effective=get_val("tax_rate_effective", "effective_tax_rate", 0.20),
+            tax_rate_marginal=get_val("tax_rate_marginal", "marginal_tax_rate", 0.25),
+            
+            # R&D
+            capitalize_rnd=capitalize_rnd,
+            rnd_asset=rnd_asset,
+            rnd_ebit_adjustment=rnd_ebit_adj,
+            
+            # Leases (Placeholder for now as YF usually bundles them)
             capitalize_operating_leases=assumptions.get("capitalize_operating_leases", False),
-            has_employee_options=assumptions.get("has_employee_options", False),
+            lease_debt=assumptions.get("lease_debt", 0.0),
+            lease_ebit_adjustment=assumptions.get("lease_ebit_adjustment", 0.0),
             
-            # Common overrides
+            # Options
+            has_employee_options=assumptions.get("has_employee_options", False),
+            options_value=assumptions.get("options_value", 0.0),
+            
+            # Overrides
             override_stable_wacc=assumptions.get("override_stable_wacc", False),
             stable_wacc=assumptions.get("stable_wacc", None),
-            mature_market_erp=assumptions.get("mature_market_erp", 0.0433)
+            mature_market_erp=assumptions.get("mature_market_erp", 0.0460),
+            
+            override_perpetual_growth=True,
+            perpetual_growth_rate=assumptions.get("perpetual_growth_rate", risk_free),
+            
+            override_tax_rate_convergence=assumptions.get("override_tax_rate_convergence", False),
+            override_riskfree_after_year10=assumptions.get("override_riskfree_after_year10", False),
+            override_stable_roc=assumptions.get("override_stable_roc", False),
+            override_failure_probability=assumptions.get("override_failure_probability", False),
+            has_nol_carryforward=assumptions.get("has_nol_carryforward", False),
+            override_reinvestment_lag=assumptions.get("override_reinvestment_lag", False),
+            override_trapped_cash=assumptions.get("override_trapped_cash", False)
         )
-        
-        return inputs
