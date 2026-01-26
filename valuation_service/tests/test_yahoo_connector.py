@@ -84,3 +84,31 @@ def test_get_valuation_inputs(mock_yfinance_ticker):
     assert inputs["cash"] == 50.0
     
     assert inputs["shares_outstanding"] == 100
+
+def test_get_valuation_inputs_annual_fallback(mock_yfinance_ticker):
+    """Test fallback to annual data when quarterly data is insufficient."""
+    instance = mock_yfinance_ticker.return_value
+    
+    # Insufficient Quarterly Data (only 1 column)
+    mock_q_inc = pd.DataFrame({
+        '2023-09-30': [10.0] 
+    }, index=['Total Revenue'])
+    instance.quarterly_financials = mock_q_inc
+    
+    # Annual Data
+    mock_ann_inc = pd.DataFrame({
+        '2022-12-31': [1000.0, 100.0, 50.0, 20.0, 150.0],
+        '2021-12-31': [900.0, 90.0, 45.0, 18.0, 140.0]
+    }, index=['Total Revenue', 'Operating Income', 'Research And Development', 'Tax Provision', 'Pretax Income'])
+    instance.financials = mock_ann_inc
+    
+    instance.quarterly_balance_sheet = pd.DataFrame() # Empty BS
+    instance.info = {"sharesOutstanding": 100, "currentPrice": 50.0}
+    
+    connector = YahooFinanceConnector()
+    inputs = connector.get_valuation_inputs("AAPL")
+    
+    # Should use Annual MRQ (first column of annual)
+    assert inputs["revenues_base"] == 1000.0
+    assert inputs["ebit_reported_base"] == 100.0
+    assert inputs["rnd_expense"] == 50.0
