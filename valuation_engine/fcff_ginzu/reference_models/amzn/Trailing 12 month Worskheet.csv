@@ -1,0 +1,45 @@
+"If you are midway through a year, and want to compute updated trailing twelve month numbers, this worksheet may help. You will need your most recent quartely financials (or 10Q) as well as your most recent annual (or 10K). ",,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,Last Annual,First X months: Last year,First X months: Current year,Trailing 12 month
+Revenues,15794.34,7608.13,9444.11,=B7-C7+D7
+Technology & Content,1221.81,581.41,756,=B8-C8+D8
+Operating income or EBIT,1605.23,908.79,1165.5,=B9-C9+D9
+Interest expenses,420.49,182.82,287.56,=B10-C10+D10
+Book value of equity,5238.77,,6105.55,
+Book value of debt,10360,,12594.14,
+Do you have operating lease commitments?,,,,
+Cash and cross holdings,3794.48,,5004.25,
+Non-operating assets ,0,,0,
+Minority interests,0,,0,
+Number of shares outstanding =,,,,
+Current stock price =,,,,
+Effective tax rate =,=15885/61372,=6965/27030,=3941/23906,
+Marginal tax rate =,,,,
+Lease commitments,,,,
+Year 1,172.47,,NA,
+Year 2,139.4,Copy into operating lease worksheet,NA,
+Year 3,145.18,,NA,
+Year 4,156.53,,NA,
+Year 5,151.2,,NA,
+Beyond year 5,943.63,,NA,
+,,,,
+,,,,
+Current year's lease expense,107,,,
+,,,,
+,,,,
+,,,,
+,,,75872,
+,,,2404,
+,,,24171,
+,,,276,
+,,,,
+,,,,
+,,,,
+G&A,630.29,286.14,426.61,=B41-C41+D41
+Marketing Costs,2369.47,1128.78,1219.73,=B42-C42+D42
+Content Costs,9967.54,4703.01,5876.21,=B43-C43+D43
+,,,,
+Content Costs (Cash Flows),13043,6020.47,6322.85,=B45-C45+D45

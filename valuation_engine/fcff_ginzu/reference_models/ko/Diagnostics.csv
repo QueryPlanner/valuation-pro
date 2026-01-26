@@ -1,0 +1,42 @@
+Step 1: Check revenue growth rate,,,Your forecasts,,,Questions to ask
+,Industry Average,Most Recent year,Next year,Years 2-5,,"1. If you are forecasting a revenue growth rate > industry average, is your company small?"
+Annual Revenue Growth Rate,='Input sheet'!J25,='Input sheet'!I25,='Valuation output'!C2,='Valuation output'!D2,,"2. If your forecasted revenue growth rate is very different from your company's most recent year of growth, what is the reason?"
+,,,,,,
+Step 2: Check dollar revenues,,,,,,
+,Most Recent year,Next year,Year 5,Year 10,,1. How big is the total market today?
+Revenues,='Valuation output'!B3,='Valuation output'!C3,='Valuation output'!G3,='Valuation output'!L3,,2. How much revenues do the biggest companies in that market make today?
+,,,,,,3. How much growth is there in the total market?
+,,,,,,4. What type of market share are you forecasting for your company in year 10?
+,,,,,,
+Step 3: Check your margins,Most Recent year,Next year,Year 5,Year 10,,1. What are the margins of the industry that the company is in?
+Operating Margin,='Valuation output'!B4,='Valuation output'!C4,='Valuation output'!G4,='Valuation output'!M4,,2. What are the unit economics of the business? (How much does it cost you to make the extra unit that you sell?
+,,,,,,3. What does the competition in this business look like?
+,,,,,,
+Step 4: Check how much you are reinvesting,,,,,,
+,Most Recent year,Next year,Year 5,Year 10,,1. is the growth that you are forecasting bounce-back growth or new growth?
+Sales to Capital,='Input sheet'!I27,='Valuation output'!C38,='Valuation output'!G38,='Valuation output'!L38,,2. How much excess capacity do you have to service near term growth?
+,,,,,,3. Does investment efficiency in this business change as companies get bigger?
+Reinvestment effect on cash flows,,,,,,
+,$ Value,As % of value,,,,
+PV of after-tax operating income for next 10 yearas,='Valuation output'!C7*'Valuation output'!C13+'Valuation output'!D7*'Valuation output'!D13+'Valuation output'!E7*'Valuation output'!E13+'Valuation output'!F7*'Valuation output'!F13+'Valuation output'!G7*'Valuation output'!G13+'Valuation output'!H7*'Valuation output'!H13+'Valuation output'!I7*'Valuation output'!I13+'Valuation output'!J7*'Valuation output'!J13+'Valuation output'!K7*'Valuation output'!K13+'Valuation output'!L7*'Valuation output'!L13,=B21/B21,,,,1. Is your reinvestment consitent with your revenue growth forecast?
+Value effect of reinvestment for next 10 years,=B21-B23,=B22/B21,,,,2. Are you comfortable with your return on capital in year 10?
+PV of FCFF for next ten years,='Valuation output'!B20,=C21-C22,,,,
+,,,,,,
+Return on capital effects,,,,,,
+,Most recent year,Marginal (1-10),ROC in year 10,Stable ROC,,
+Return on capital,='Valuation output'!B40,=('Valuation output'!L7-'Valuation output'!B7)/('Valuation output'!L39-'Valuation output'!B39),='Valuation output'!L40,='Valuation output'!M40,,
+,,,,,,
+Step 5: Risk Metrics,,,,,,
+,Industry Average,Compounded,Year 1-5,Stable Growth,,1. How does your cost of capital compare to the industry average?
+Cost of capital,='Input sheet'!J31,=(1/'Valuation output'!L13)^(1/10)-1,='Valuation output'!C12,='Valuation output'!M12,,2. What is happenign to your cost of capital over time? Why?
+,,,,,,3. Is your failure rate consistent with your company's characteristics?
+Failure Rate,='Valuation output'!B22,,,,,
+,,,,,,
+Step 6: Price versus Value,,,,,,
+Your calculated value as a percent of current price,='Valuation output'!B33/'Valuation output'!B34,,,,,
+,"=IF(B36=""NA"",""Value is negative. See below"",IF(B36>2,""Value seems high. See below"",IF(B36<0.5,""Value seems low. See below"","" "")))",,,,,
+Inputs,If calculated value is negative or looks too low,If calculated value looks too high,,,,
+"Revenue growth rate (input cell B25, B27)",Increase revenue growth rate,Decrease revenue growth rate,,,,
+"Operating margin (B26, B28)",Increase the target pre-tax operating margin,Decrease the target pre-tax operating margin, ,,,
+Sales to Capital (B30-B32),Increase the sales/capital ratio,Decrease the sales/capital ratio, ,,,
+"Return on capital in perpetuity (B48, B49)",Increase relative to your cost of capital,"If higher than your cost of capital, lower towards your cost of capital",T,,,

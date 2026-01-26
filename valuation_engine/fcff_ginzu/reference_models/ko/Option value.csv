@@ -1,0 +1,29 @@
+"Note: This worksheet is the most finicky of all of the worksheets in this spreadsheet. If you start to get errors, here is a quick fix. Go into cell B12 and replace the contents with a number (say 5), and then undo your action. The spreadsheet will fix itself magically.",,,
+,,,
+Valuing Options or Warrants,,,
+Enter the current stock price =,='Input sheet'!B22,,
+Enter the strike price on the option =,='Input sheet'!B39,,
+Enter the expiration of the option =,='Input sheet'!B40,,
+Enter the standard deviation in stock prices =,='Input sheet'!B41,(volatility),
+Enter the annualized dividend yield on stock =,0,,
+Enter the treasury bond rate =,='Input sheet'!B34,,
+Enter the number of warrants (options) outstanding =,='Input sheet'!B38,,
+Enter the number of shares outstanding =,='Input sheet'!B21,,
+,,,
+Do not input any numbers below this line,,,
+Dilution-adjusted Black-Scholes,,,
+Stock Price=,=B4,# Warrants issued=,=B10
+Strike Price=,=B5,# Shares outstanding=,=B11
+Adjusted S =,=(B15*D16+B28*D15)/(D16+D15),T.Bond rate=,=B9
+Adjusted K =,=B16,Variance=,=B7^2
+Expiration (in years) =,=B6,Annualized dividend yield=,=B8
+,,Div. Adj. interest rate=,=D17-D19
+,,,
+d1 = ,=(LN(B17/B18)+(D20+(D18/2))*B19)/(((D18)^(0.5))*(B19^0.5)),,
+N (d1) =,=NORMSDIST(B22),,
+,,,
+d2 = ,=B22-((D18^0.5)*(B19^(0.5))),,
+N (d2) =,=NORMSDIST(B25),,
+,,,
+Value per option = ,=((EXP((0-D19)*B19))*B17*B23-B18*(EXP((0-D17)*B19))*B26),,
+Value of all options outstanding =,=B28*B10,,

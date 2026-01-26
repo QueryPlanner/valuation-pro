@@ -1,0 +1,16 @@
+Yes/No,Book or Market Value,ERP choices,Cost of debt,Synthetic rating,Beta,Rating is,Region,Cost of Capital Approach,Reinvestment lag
+Yes,B,Will input,Direct input,1,Direct input,Aaa/AAA,First Decile,I will input,0
+No,V,Country of incorporation,Synthetic rating,2,Single Business(US),Aa2/AA,First Quartile,Detailed,1
+,,Operating countries,Actual rating,,Single Business(Global),A1/A+,Median,Industry Average,2
+,,Operating regions,,,Multibusiness(US),A2/A,Third Quartile,Distribution,3
+,,,,,Multibusiness(Global),A3/A-,Ninth Decile,,
+,,,,,,Baa2/BBB,,,
+,,,,,,Ba1/BB+,,,
+,,,,,,Ba2/BB,,,
+,,,,,,B1/B+,,,
+,,,,,,B2/B,,,
+,,,,,,B3/B-,,,
+,,,,,,C2/C,,,
+,,,,,,Ca2/CC,,,
+,,,,,,Caa/CCC,,,
+,,,,,,D2/D,,,
