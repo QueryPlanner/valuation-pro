@@ -14,6 +14,20 @@ class BaseConnector(ABC):
         """Fetch market data (Price, Beta, Risk Free Rate, etc.)."""
         pass
 
+    @abstractmethod
+    def get_valuation_inputs(self, ticker: str) -> Dict[str, Any]:
+        """
+        Fetch and normalize data specifically for the Valuation Engine.
+        Returns a dictionary containing keys like:
+        - revenues_base (LTM)
+        - ebit_reported_base (LTM)
+        - book_equity (MRQ)
+        - book_debt (MRQ)
+        - rnd_expense (LTM)
+        - rnd_history (List[float])
+        """
+        pass
+
 class ConnectorFactory:
     """Simple factory to manage data connectors (Singleton Pattern)."""
     _connector_classes: Dict[str, Type[BaseConnector]] = {}

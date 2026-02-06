@@ -11,24 +11,23 @@ def test_valuation_service_initialization():
 def test_calculate_valuation_flow():
     mock_connector = MagicMock(spec=BaseConnector)
     
-    # Mock data return
-    mock_connector.get_financials.return_value = {
-        "income_statement": {"2023": {"Total Revenue": 1000, "EBIT": 100}},
-        "balance_sheet": {"2023": {"Total Assets": 2000, "Total Equity": 800, "Total Debt": 500}},
-        "cash_flow": {"2023": {"Operating Cash Flow": 150}}
-    }
-    mock_connector.get_market_data.return_value = {
-        "price": 100.0,
-        "beta": 1.1,
-        "market_cap": 10000.0,
+    # Mock data return for get_valuation_inputs
+    mock_connector.get_valuation_inputs.return_value = {
+        "revenues_base": 1000.0,
+        "ebit_reported_base": 100.0,
+        "book_equity": 500.0,
+        "book_debt": 200.0,
+        "cash": 100.0,
+        "shares_outstanding": 10.0,
+        "stock_price": 50.0,
         "risk_free_rate": 0.04
     }
     
     service = ValuationService(mock_connector)
     
-    # We expect this to fail until implemented
-    # passing a minimal assumption set
     result = service.calculate_valuation("AAPL", assumptions={})
     
     assert result is not None
     assert "value_of_equity" in result
+    # Verify the connector method was called
+    mock_connector.get_valuation_inputs.assert_called_once_with("AAPL")
