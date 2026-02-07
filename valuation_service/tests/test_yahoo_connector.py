@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 import pandas as pd
+import datetime
 from valuation_service.connectors import YahooFinanceConnector
 
 @pytest.fixture
@@ -112,3 +113,45 @@ def test_get_valuation_inputs_annual_fallback(mock_yfinance_ticker):
     assert inputs["revenues_base"] == 1000.0
     assert inputs["ebit_reported_base"] == 100.0
     assert inputs["rnd_expense"] == 50.0
+
+def test_get_valuation_inputs_retrospective_shares_fallback(mock_yfinance_ticker):
+    """Test fallback to annual balance sheet when quarterly balance sheet is empty for retrospective date."""
+    instance = mock_yfinance_ticker.return_value
+    
+    # Valuation Date: 2024-02-01
+    as_of_date = datetime.date(2024, 2, 1)
+
+    # Quarterly Balance Sheet: Only future data (e.g. 2024-06-30) relative to valuation date
+    # Or just mock it such that filtering by date returns empty.
+    # The connector logic filters columns <= as_of_date.
+    # So if we provide only dates > 2024-02-01, it will be empty after filtering.
+    mock_q_bal = pd.DataFrame({
+        '2024-06-30': [1200.0],
+    }, index=['Ordinary Shares Number'])
+    # Need to ensure columns are datetime-like for the filter logic to work
+    mock_q_bal.columns = pd.to_datetime(mock_q_bal.columns)
+    instance.quarterly_balance_sheet = mock_q_bal
+    
+    # Annual Balance Sheet: Has data for 2023-12-31 (valid for 2024-02-01)
+    mock_ann_bal = pd.DataFrame({
+        '2023-12-31': [1000.0],
+        '2022-12-31': [900.0]
+    }, index=['Ordinary Shares Number'])
+    mock_ann_bal.columns = pd.to_datetime(mock_ann_bal.columns)
+    instance.balance_sheet = mock_ann_bal
+    
+    # Other Dataframes (can be minimal)
+    instance.quarterly_financials = pd.DataFrame()
+    instance.financials = pd.DataFrame()
+    instance.info = {"currentPrice": 50.0} # Used if historical price fails, though historical price logic is mocked separately usually
+    
+    with patch("valuation_service.connectors.yahoo.yf.download") as mock_download:
+        # Mock historical price
+        mock_df = pd.DataFrame({'Close': [45.0]}, index=[pd.Timestamp('2024-01-31')])
+        mock_download.return_value = mock_df
+
+        connector = YahooFinanceConnector()
+        inputs = connector.get_valuation_inputs("AAPL", as_of_date=as_of_date)
+        
+        # Should pick up 1000.0 from annual 2023-12-31
+        assert inputs["shares_outstanding"] == 1000.0

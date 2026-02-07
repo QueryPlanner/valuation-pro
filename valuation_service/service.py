@@ -15,13 +15,13 @@ class ValuationService:
     def __init__(self, connector: BaseConnector):
         self.connector = connector
 
-    def calculate_valuation(self, ticker: str, assumptions: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def calculate_valuation(self, ticker: str, assumptions: Optional[Dict[str, Any]] = None, valuation_date: Optional[Any] = None) -> Dict[str, Any]:
         """
         Orchestrates the valuation process.
         """
         # 1. Fetch normalized inputs from Connector
         # This encapsulates source-specific logic (LTM, etc.)
-        fetched_inputs = self.connector.get_valuation_inputs(ticker)
+        fetched_inputs = self.connector.get_valuation_inputs(ticker, as_of_date=valuation_date)
         
         # 2. Map to GinzuInputs (Merging with assumptions)
         inputs = self._prepare_ginzu_inputs(fetched_inputs, assumptions or {})
@@ -30,7 +30,9 @@ class ValuationService:
         outputs = compute_ginzu(inputs)
         
         # 4. Return results (Dict for API)
-        return outputs.__dict__
+        result = outputs.__dict__
+        result['valuation_date'] = str(valuation_date) if valuation_date else "latest"
+        return result
 
     def _prepare_ginzu_inputs(self, data: Dict[str, Any], assumptions: Dict[str, Any]) -> GinzuInputs:
         """
@@ -90,8 +92,20 @@ class ValuationService:
         # Invested Capital Calculation for Sales/Cap Ratio
         book_equity = data.get('book_equity', 0.0)
         book_debt = data.get('book_debt', 0.0)
+        capital_leases_reported = data.get('capital_lease_obligations', 0.0)
         cash = data.get('cash', 0.0)
         
+        # Leases: Check assumptions first
+        capitalize_operating_leases = assumptions.get("capitalize_operating_leases", False)
+        
+        # Adjust Book Debt if capitalizing leases (avoid double counting)
+        if capitalize_operating_leases:
+            # User wants to use their own lease debt (converted value).
+            # We must remove the reported lease liability from the reported debt.
+            book_debt -= capital_leases_reported
+            if book_debt < 0:
+                book_debt = 0.0 # Safety clamp
+
         # Adjust Book Equity for R&D if capitalized
         if capitalize_rnd:
             book_equity += rnd_asset
@@ -149,7 +163,7 @@ class ValuationService:
             rnd_ebit_adjustment=rnd_ebit_adj,
             
             # Leases (Placeholder for now as YF usually bundles them)
-            capitalize_operating_leases=assumptions.get("capitalize_operating_leases", False),
+            capitalize_operating_leases=capitalize_operating_leases,
             lease_debt=assumptions.get("lease_debt", 0.0),
             lease_ebit_adjustment=assumptions.get("lease_ebit_adjustment", 0.0),
             

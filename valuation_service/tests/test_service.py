@@ -26,8 +26,8 @@ def test_calculate_valuation_flow():
     service = ValuationService(mock_connector)
     
     result = service.calculate_valuation("AAPL", assumptions={})
-    
+
     assert result is not None
     assert "value_of_equity" in result
     # Verify the connector method was called
-    mock_connector.get_valuation_inputs.assert_called_once_with("AAPL")
+    mock_connector.get_valuation_inputs.assert_called_once_with("AAPL", as_of_date=None)

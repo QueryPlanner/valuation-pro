@@ -2,6 +2,8 @@
 
 This module provides a FastAPI-based REST API for the **Valuation Engine**, allowing users to fetch financial data and calculate company valuations programmatically.
 
+> **Note**: This project now uses [uv](https://github.com/astral-sh/uv) for fast, reliable Python package management with lock file support.
+
 ## Overview
 
 The `valuation_service` bridges the gap between raw data sources (like Yahoo Finance) and the core mathematical logic in `valuation_engine`. It handles:
@@ -23,16 +25,44 @@ The `valuation_service` bridges the gap between raw data sources (like Yahoo Fin
 ## Getting Started
 
 ### Prerequisites
-Ensure you have the dependencies installed:
+
+This project uses [uv](https://github.com/astral-sh/uv) for fast, reliable Python package management.
+
+If you don't have uv installed:
 ```bash
-pip install -r requirements.txt
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### Running the API
-Start the server using `uvicorn`:
+### Installation
+
+Install dependencies using uv:
 ```bash
+cd valuation_service
+uv sync
+```
+
+This creates a virtual environment at `.venv` and installs all dependencies with lock file support via `uv.lock`.
+
+### Running the API
+
+#### Option 1: Using the run script (recommended)
+```bash
+./run.sh
+```
+
+#### Option 2: Manual with PYTHONPATH
+```bash
+export PYTHONPATH="$(pwd)/..:$PYTHONPATH"
+uv run uvicorn valuation_service.main:app --reload
+```
+
+#### Option 3: Activate venv manually
+```bash
+source .venv/bin/activate
+export PYTHONPATH="$(pwd)/..:$PYTHONPATH"
 uvicorn valuation_service.main:app --reload
 ```
+
 The API will be available at `http://127.0.0.1:8000`.
 
 ### Documentation
@@ -62,11 +92,41 @@ Interactive API documentation (Swagger UI) is automatically generated at:
 
 ## Testing
 
-Run the test suite using `pytest`:
+Run the test suite using uv:
 ```bash
-pytest valuation_service/tests/
+export PYTHONPATH="$(pwd)/..:$PYTHONPATH"
+uv run pytest tests/
 ```
+
 To check coverage:
 ```bash
-pytest --cov=valuation_service valuation_service/tests/
+export PYTHONPATH="$(pwd)/..:$PYTHONPATH"
+uv run pytest --cov=valuation_service tests/
 ```
+
+Note: The PYTHONPATH export is required so tests can import the `valuation_engine` module from the parent directory.
+
+## Development
+
+### Adding Dependencies
+
+Add a new dependency:
+```bash
+uv add <package-name>
+```
+
+Add a dev dependency:
+```bash
+uv add --dev <package-name>
+```
+
+### Updating Dependencies
+
+Update all dependencies:
+```bash
+uv sync --upgrade
+```
+
+### Lock File
+
+The `uv.lock` file ensures reproducible installs across environments. Commit this file to version control.

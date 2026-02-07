@@ -9,6 +9,9 @@ class MockConnector(BaseConnector):
     def get_market_data(self, ticker: str) -> Dict[str, Any]:
         return {"mock": "market"}
 
+    def get_valuation_inputs(self, ticker: str, as_of_date: Any = None) -> Dict[str, Any]:
+        return {"mock": "valuation_inputs"}
+
 def test_connector_interface():
     # Ensure BaseConnector enforces implementation
     with pytest.raises(TypeError):
@@ -23,5 +26,5 @@ def test_factory_registration():
     assert connector.get_financials("AAPL") == {"mock": "financials"}
 
 def test_factory_invalid_connector():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Available connectors"):
         ConnectorFactory.get_connector("non_existent")

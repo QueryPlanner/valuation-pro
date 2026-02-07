@@ -13,6 +13,9 @@ class MockStatefulConnector(BaseConnector):
     def get_market_data(self, ticker: str) -> Dict[str, Any]:
         return {}
 
+    def get_valuation_inputs(self, ticker: str, as_of_date: Any = None) -> Dict[str, Any]:
+        return {}
+
 def test_connector_singleton_pattern():
     # Register our mock
     ConnectorFactory.register("stateful_mock", MockStatefulConnector)

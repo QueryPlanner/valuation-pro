@@ -37,10 +37,12 @@ class YahooFinanceConnector(BaseConnector):
             "risk_free_rate": risk_free_rate
         }
 
-    def get_valuation_inputs(self, ticker: str) -> Dict[str, Any]:
+    def get_valuation_inputs(self, ticker: str, as_of_date: Optional[datetime.date] = None) -> Dict[str, Any]:
         """
         Fetch and normalize data specifically for the Valuation Engine.
         Implements LTM calculations and fallback logic.
+        
+        :param as_of_date: If provided, fetches data as if it were this date.
         """
         stock = yf.Ticker(ticker)
         
@@ -48,7 +50,15 @@ class YahooFinanceConnector(BaseConnector):
         q_inc = stock.quarterly_financials
         q_bal = stock.quarterly_balance_sheet
         ann_inc = stock.financials
+        ann_bal = stock.balance_sheet
         info = stock.info
+
+        # Filter for retrospective valuation
+        if as_of_date:
+            q_inc = self._filter_dataframe_by_date(q_inc, as_of_date)
+            q_bal = self._filter_dataframe_by_date(q_bal, as_of_date)
+            ann_inc = self._filter_dataframe_by_date(ann_inc, as_of_date)
+            ann_bal = self._filter_dataframe_by_date(ann_bal, as_of_date)
 
         data = {}
 
@@ -87,30 +97,39 @@ class YahooFinanceConnector(BaseConnector):
             data['rnd_history'] = []
 
         # 4. Stocks (Point in Time - MRQ)
-        if not q_bal.empty:
+        # Use Quarterly Balance Sheet if available, else Annual
+        bs_df = q_bal if not q_bal.empty else ann_bal
+
+        if not bs_df.empty:
             # Book Equity: Include minority interest if consolidated
-            stockholders_equity = self._get_mrq_value(q_bal, 'Stockholders Equity')
-            total_equity_gross_mi = self._get_mrq_value(q_bal, 'Total Equity Gross Minority Interest')
+            stockholders_equity = self._get_mrq_value(bs_df, 'Stockholders Equity')
+            total_equity_gross_mi = self._get_mrq_value(bs_df, 'Total Equity Gross Minority Interest')
             
             if total_equity_gross_mi > 0:
                 data['book_equity'] = total_equity_gross_mi
                 data['minority_interest'] = total_equity_gross_mi - stockholders_equity
             else:
                 data['book_equity'] = stockholders_equity
-                mi_val = self._get_mrq_value(q_bal, 'Minority Interest')
+                mi_val = self._get_mrq_value(bs_df, 'Minority Interest')
                 data['minority_interest'] = mi_val if mi_val > 0 else 0.0
 
             # Debt & Cash
-            data['book_debt'] = self._get_mrq_value(q_bal, 'Total Debt')
+            data['book_debt'] = self._get_mrq_value(bs_df, 'Total Debt')
             
-            cash_equiv = self._get_mrq_value(q_bal, 'Cash Cash Equivalents And Short Term Investments')
+            # Try to fetch Capital Lease Obligations for potential adjustment later
+            leases = self._get_mrq_value(bs_df, 'Capital Lease Obligations')
+            if leases == 0:
+                leases = self._get_mrq_value(bs_df, 'Long Term Capital Lease Obligation')
+            data['capital_lease_obligations'] = leases
+            
+            cash_equiv = self._get_mrq_value(bs_df, 'Cash Cash Equivalents And Short Term Investments')
             if cash_equiv == 0:
-                c = self._get_mrq_value(q_bal, 'Cash And Cash Equivalents')
-                st = self._get_mrq_value(q_bal, 'Other Short Term Investments')
+                c = self._get_mrq_value(bs_df, 'Cash And Cash Equivalents')
+                st = self._get_mrq_value(bs_df, 'Other Short Term Investments')
                 cash_equiv = c + st
             data['cash'] = cash_equiv
             
-            data['cross_holdings'] = self._get_mrq_value(q_bal, 'Investmentin Financial Assets')
+            data['cross_holdings'] = self._get_mrq_value(bs_df, 'Investmentin Financial Assets')
         else:
             # Fallback if BS is empty
             data['book_equity'] = 0.0
@@ -120,11 +139,23 @@ class YahooFinanceConnector(BaseConnector):
             data['cross_holdings'] = 0.0
 
         # 5. Shares & Price
-        shares = info.get('sharesOutstanding')
-        if not shares and not q_bal.empty:
-            shares = self._get_mrq_value(q_bal, 'Ordinary Shares Number')
+        shares = None
+        price = 0.0
+        
+        if as_of_date:
+            # Retrospective: Use Balance Sheet shares + Historical Price
+            if not bs_df.empty:
+                shares = self._get_mrq_value(bs_df, 'Ordinary Shares Number')
+            price = self._get_historical_price(ticker, as_of_date)
+        else:
+            # Current: Use Info
+            shares = info.get('sharesOutstanding')
+            if not shares and not bs_df.empty:
+                shares = self._get_mrq_value(bs_df, 'Ordinary Shares Number')
+            price = info.get('currentPrice', 0.0)
+
         data['shares_outstanding'] = float(shares) if shares else 0.0
-        data['stock_price'] = info.get('currentPrice', 0.0)
+        data['stock_price'] = price
 
         # 6. Tax Rates
         country = info.get('country', 'US')
@@ -144,11 +175,51 @@ class YahooFinanceConnector(BaseConnector):
             
         # 7. Metadata / Flags
         data['operating_leases_flag'] = 'no' # YF simplifies this into Debt usually
-        data['risk_free_rate'] = self._get_risk_free_rate()
+        data['risk_free_rate'] = self._get_risk_free_rate(as_of_date)
         
         return data
 
     # --- Helpers ---
+    
+    def _filter_dataframe_by_date(self, df: pd.DataFrame, cutoff_date: datetime.date) -> pd.DataFrame:
+        """Keeps columns where date <= cutoff_date."""
+        if df.empty:
+            return df
+        # Ensure columns are datetime objects
+        # YF columns are usually Timestamps.
+        # We need to iterate and filter.
+        valid_cols = []
+        for col in df.columns:
+            try:
+                col_date = pd.to_datetime(col).date()
+                if col_date <= cutoff_date:
+                    valid_cols.append(col)
+            except:
+                pass # Ignore non-date columns if any
+        
+        return df[valid_cols]
+
+    def _get_historical_price(self, ticker: str, date: datetime.date) -> float:
+        """Fetches closing price for a specific date (or nearest previous trading day)."""
+        # Fetch a small window around the date
+        start = date - datetime.timedelta(days=5)
+        end = date + datetime.timedelta(days=1)
+        try:
+            hist = yf.download(ticker, start=start, end=end, progress=False)
+            if not hist.empty:
+                # Get the last available close up to the date
+                # hist index is DatetimeIndex
+                # filter rows <= date
+                mask = hist.index.date <= date
+                filtered = hist[mask]
+                if not filtered.empty:
+                    val = filtered['Close'].iloc[-1]
+                    if hasattr(val, 'item'): val = val.item()
+                    elif hasattr(val, 'values'): val = val.values[0]
+                    return float(val)
+        except Exception:
+            pass
+        return 0.0
 
     def _get_ltm_value(self, df: pd.DataFrame, row_name: str, num_quarters: int = 4) -> float:
         """Sums `num_quarters` values for a given row."""
@@ -166,18 +237,31 @@ class YahooFinanceConnector(BaseConnector):
         val = df.loc[row_name].iloc[0]
         return float(val) if pd.notna(val) else 0.0
 
-    def _get_risk_free_rate(self) -> float:
+    def _get_risk_free_rate(self, as_of_date: Optional[datetime.date] = None) -> float:
         try:
-            tnx = yf.download("^TNX", period="1d", progress=False)
-            if not tnx.empty:
-                if 'Close' in tnx.columns:
-                     val = tnx['Close'].iloc[-1]
-                else:
-                     val = tnx.iloc[-1, 0]
+            end_date = None
+            if as_of_date:
+                start = as_of_date - datetime.timedelta(days=5)
+                end = as_of_date + datetime.timedelta(days=1)
+                tnx = yf.download("^TNX", start=start, end=end, progress=False)
+            else:
+                tnx = yf.download("^TNX", period="1d", progress=False)
                 
-                if hasattr(val, 'item'): val = val.item()
-                elif hasattr(val, 'values'): val = val.values[0]
-                return float(val) / 100.0
+            if not tnx.empty:
+                # If historical, filter up to date
+                if as_of_date:
+                    mask = tnx.index.date <= as_of_date
+                    tnx = tnx[mask]
+                
+                if not tnx.empty:
+                    if 'Close' in tnx.columns:
+                         val = tnx['Close'].iloc[-1]
+                    else:
+                         val = tnx.iloc[-1, 0]
+                    
+                    if hasattr(val, 'item'): val = val.item()
+                    elif hasattr(val, 'values'): val = val.values[0]
+                    return float(val) / 100.0
         except Exception:
             pass
         return 0.04  # Fallback

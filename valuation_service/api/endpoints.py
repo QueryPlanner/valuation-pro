@@ -9,9 +9,12 @@ from valuation_service.utils import sanitize_for_json
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+from datetime import date
+
 class ValuationRequest(BaseModel):
     ticker: str
     source: str = "yahoo"
+    valuation_date: Optional[date] = None
     assumptions: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(
@@ -19,6 +22,7 @@ class ValuationRequest(BaseModel):
             "example": {
                 "ticker": "AAPL",
                 "source": "yahoo",
+                "valuation_date": "2023-12-31",
                 "assumptions": {
                     "wacc_initial": 0.085,
                     "tax_rate_effective": 0.21,
@@ -75,7 +79,7 @@ def calculate_valuation(request: ValuationRequest):
         connector = ConnectorFactory.get_connector(request.source)
         service = ValuationService(connector)
         
-        result = service.calculate_valuation(request.ticker, request.assumptions)
+        result = service.calculate_valuation(request.ticker, request.assumptions, request.valuation_date)
         return sanitize_for_json(result)
     except ValueError as e:
         logger.warning(f"Bad Request for {request.ticker}: {e}")

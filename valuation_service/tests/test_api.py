@@ -57,10 +57,10 @@ def test_calculate_valuation():
         response = client.post("/valuation/calculate", json={"ticker": "AAPL"})
         assert response.status_code == 200
         assert response.json() == mock_result
-        instance.calculate_valuation.assert_called_with("AAPL", None)
+        instance.calculate_valuation.assert_called_with("AAPL", None, None)
         
         # Test with assumptions
         assumptions = {"wacc_initial": 0.09}
         response = client.post("/valuation/calculate", json={"ticker": "AAPL", "assumptions": assumptions})
         assert response.status_code == 200
-        instance.calculate_valuation.assert_called_with("AAPL", assumptions)
+        instance.calculate_valuation.assert_called_with("AAPL", assumptions, None)

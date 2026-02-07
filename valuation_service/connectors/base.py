@@ -15,7 +15,7 @@ class BaseConnector(ABC):
         pass
 
     @abstractmethod
-    def get_valuation_inputs(self, ticker: str) -> Dict[str, Any]:
+    def get_valuation_inputs(self, ticker: str, as_of_date: Any = None) -> Dict[str, Any]:
         """
         Fetch and normalize data specifically for the Valuation Engine.
         Returns a dictionary containing keys like:
@@ -25,6 +25,8 @@ class BaseConnector(ABC):
         - book_debt (MRQ)
         - rnd_expense (LTM)
         - rnd_history (List[float])
+        
+        :param as_of_date: (Optional) date object for retrospective valuation.
         """
         pass
 
@@ -46,7 +48,8 @@ class ConnectorFactory:
         # Create new instance if registered
         connector_cls = cls._connector_classes.get(name)
         if not connector_cls:
-            raise ValueError(f"Connector '{name}' not found.")
+            available = ", ".join(sorted(cls._connector_classes.keys()))
+            raise ValueError(f"Connector '{name}' not found. Available connectors: {available}")
         
         instance = connector_cls()
         cls._instances[name] = instance
