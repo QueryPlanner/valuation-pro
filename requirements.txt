@@ -1,6 +1,0 @@
-openpyxl
-yfinance
-fastapi
-uvicorn
-httpx
-pytest

@@ -1,0 +1,41 @@
+[project]
+name = "valuation-pro"
+version = "0.1.0"
+description = "Valuation models and FastAPI service — UV workspace monorepo"
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[dependency-groups]
+dev = [
+  { include-group = "lint" },
+  { include-group = "test" },
+]
+lint = [
+  "ruff",
+]
+test = [
+  "pytest>=8.0",
+  "httpx>=0.27",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [
+  "packages/valuation-engine/src",
+  "packages/valuation-service/src",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+src = [
+  "packages/valuation-engine/src",
+  "packages/valuation-service/src",
+  "tests",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
