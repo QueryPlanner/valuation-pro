@@ -13,24 +13,45 @@ TAX_RATES = {"US": 0.21, "United States": 0.21, "IE": 0.125, "GB": 0.25, "CN": 0
 class YahooFinanceConnector(BaseConnector):
     """Connector for fetching data from Yahoo Finance."""
 
-    def get_financials(self, ticker: str) -> Dict[str, Any]:
+    def get_financials(self, ticker: str, as_of_date: str = None) -> Dict[str, Any]:
         """Fetch raw financial statements from Yahoo Finance."""
         stock = yf.Ticker(ticker)
+        inc = stock.income_stmt
+        bal = stock.balance_sheet
+        cf = stock.cashflow
+        
+        if as_of_date:
+            inc = self._filter_cols_by_date(inc, as_of_date)
+            bal = self._filter_cols_by_date(bal, as_of_date)
+            cf = self._filter_cols_by_date(cf, as_of_date)
+
         return {
-            "income_statement": stock.income_stmt.to_dict(),
-            "balance_sheet": stock.balance_sheet.to_dict(),
-            "cash_flow": stock.cashflow.to_dict(),
+            "income_statement": inc.to_dict() if not inc.empty else {},
+            "balance_sheet": bal.to_dict() if not bal.empty else {},
+            "cash_flow": cf.to_dict() if not cf.empty else {},
         }
 
-    def get_market_data(self, ticker: str) -> Dict[str, Any]:
+    def get_market_data(self, ticker: str, as_of_date: str = None) -> Dict[str, Any]:
         """Fetch market data from Yahoo Finance."""
         stock = yf.Ticker(ticker)
         info = stock.info
 
         risk_free_rate = self._get_risk_free_rate()
+        
+        price = info.get("currentPrice") or info.get("regularMarketPrice")
+        
+        if as_of_date:
+            try:
+                # fetch historical price
+                end_dt = datetime.datetime.strptime(as_of_date, "%Y-%m-%d") + datetime.timedelta(days=1)
+                hist = stock.history(end=end_dt.strftime("%Y-%m-%d"))
+                if not hist.empty:
+                    price = float(hist["Close"].iloc[-1])
+            except Exception:
+                pass
 
         return {
-            "price": info.get("currentPrice") or info.get("regularMarketPrice"),
+            "price": price,
             "beta": info.get("beta"),
             "market_cap": info.get("marketCap"),
             "shares_outstanding": info.get("sharesOutstanding"),
@@ -53,35 +74,15 @@ class YahooFinanceConnector(BaseConnector):
 
         # --- Date Filtering ---
         if as_of_date:
-            try:
-                dt_limit = datetime.datetime.strptime(as_of_date, "%Y-%m-%d").date()
-            except ValueError:
-                dt_limit = datetime.date.today()
-
-            def filter_cols(df):
-                if df.empty: return df
-                valid_cols = [c for c in df.columns if hasattr(c, 'date') and c.date() <= dt_limit]
-                if not valid_cols:
-                    # sometimes columns are strings if not properly parsed
-                    valid_cols = []
-                    for c in df.columns:
-                        try:
-                            if isinstance(c, str):
-                                c_date = datetime.datetime.strptime(c, "%Y-%m-%d").date()
-                                if c_date <= dt_limit: valid_cols.append(c)
-                            elif hasattr(c, 'date') and c.date() <= dt_limit:
-                                valid_cols.append(c)
-                        except: pass
-                return df[valid_cols]
-
-            q_inc = filter_cols(q_inc)
-            q_bal = filter_cols(q_bal)
-            ann_inc = filter_cols(ann_inc)
+            q_inc = self._filter_cols_by_date(q_inc, as_of_date)
+            q_bal = self._filter_cols_by_date(q_bal, as_of_date)
+            ann_inc = self._filter_cols_by_date(ann_inc, as_of_date)
 
             # Fallback to annual balance sheet if quarterly is empty after filtering
             if q_bal.empty:
                 ann_bal = stock.balance_sheet
-                q_bal = filter_cols(ann_bal)
+                q_bal = self._filter_cols_by_date(ann_bal, as_of_date)
+
 
         data = {}
 
@@ -182,6 +183,26 @@ class YahooFinanceConnector(BaseConnector):
         return data
 
     # --- Helpers ---
+    def _filter_cols_by_date(self, df: pd.DataFrame, as_of_date: str) -> pd.DataFrame:
+        if df.empty or not as_of_date: return df
+        try:
+            dt_limit = datetime.datetime.strptime(as_of_date, "%Y-%m-%d").date()
+        except ValueError:
+            return df
+        
+        valid_cols = [c for c in df.columns if hasattr(c, 'date') and c.date() <= dt_limit]
+        if not valid_cols:
+            valid_cols = []
+            for c in df.columns:
+                try:
+                    if isinstance(c, str):
+                        c_date = datetime.datetime.strptime(c, "%Y-%m-%d").date()
+                        if c_date <= dt_limit: valid_cols.append(c)
+                    elif hasattr(c, 'date') and c.date() <= dt_limit:
+                        valid_cols.append(c)
+                except: pass
+        return df[valid_cols]
+
 
     def _get_ltm_value(self, df: pd.DataFrame, row_name: str, num_quarters: int = 4) -> float:
         """Sums `num_quarters` values for a given row."""

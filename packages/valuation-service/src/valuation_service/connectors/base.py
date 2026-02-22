@@ -6,12 +6,12 @@ class BaseConnector(ABC):
     """Abstract base class for data connectors."""
 
     @abstractmethod
-    def get_financials(self, ticker: str) -> Dict[str, Any]:
+    def get_financials(self, ticker: str, as_of_date: str = None) -> Dict[str, Any]:
         """Fetch financial statements (Income, Balance Sheet, Cash Flow)."""
         pass
 
     @abstractmethod
-    def get_market_data(self, ticker: str) -> Dict[str, Any]:
+    def get_market_data(self, ticker: str, as_of_date: str = None) -> Dict[str, Any]:
         """Fetch market data (Price, Beta, Risk Free Rate, etc.)."""
         pass
 

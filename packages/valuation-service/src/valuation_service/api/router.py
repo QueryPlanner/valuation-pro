@@ -3,6 +3,7 @@ API Router — all endpoint definitions for the valuation service.
 """
 
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -21,10 +22,10 @@ router = APIRouter()
     description="Fetches raw income statement, balance sheet, and cash flow data from the selected source.",
     response_description="Dictionary containing financial statements keyed by date.",
 )
-def get_financials(ticker: str, source: str = Query("yahoo", description="Data source connector")):
+def get_financials(ticker: str, source: str = Query("yahoo", description="Data source connector"), as_of_date: Optional[str] = Query(None, description="Optional historical date (YYYY-MM-DD)")):
     try:
         connector = ConnectorFactory.get_connector(source)
-        data = connector.get_financials(ticker)
+        data = connector.get_financials(ticker, as_of_date=as_of_date)
         return sanitize_for_json(data)
     except ValueError as e:
         logger.warning(f"Bad Request for {ticker}: {e}")
@@ -40,10 +41,10 @@ def get_financials(ticker: str, source: str = Query("yahoo", description="Data s
     description="Fetches current market data including price, beta, market cap, and risk-free rate.",
     response_description="Dictionary containing market metrics.",
 )
-def get_market_data(ticker: str, source: str = Query("yahoo", description="Data source connector")):
+def get_market_data(ticker: str, source: str = Query("yahoo", description="Data source connector"), as_of_date: Optional[str] = Query(None, description="Optional historical date (YYYY-MM-DD)")):
     try:
         connector = ConnectorFactory.get_connector(source)
-        data = connector.get_market_data(ticker)
+        data = connector.get_market_data(ticker, as_of_date=as_of_date)
         return sanitize_for_json(data)
     except ValueError as e:
         logger.warning(f"Bad Request for {ticker}: {e}")
