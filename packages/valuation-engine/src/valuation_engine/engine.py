@@ -132,10 +132,6 @@ def compute_dilution_adjusted_black_scholes_option_value(inputs: OptionInputs) -
     """
     if inputs.options_outstanding <= 0:
         return 0.0
-    if inputs.maturity_years <= 0:
-        return 0.0
-    if inputs.volatility <= 0:
-        return 0.0
     if inputs.shares_outstanding <= 0:
         raise InputError("shares_outstanding must be > 0 for option valuation")
 

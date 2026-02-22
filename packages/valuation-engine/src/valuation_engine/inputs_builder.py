@@ -102,7 +102,7 @@ def build_ginzu_inputs(
             amort_years = assumptions.get("rnd_amortization_years", 5)
             past_rnd = []
             for i in range(amort_years):
-                val = rnd_history[i] if i < len(rnd_history) else 0.0
+                val = rnd_history[i + 1] if (i + 1) < len(rnd_history) else 0.0
                 past_rnd.append(float(val))
 
             rnd_inputs = RnDCapitalizationInputs(
