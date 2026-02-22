@@ -6,9 +6,10 @@ End-to-end test that verifies ValuationService.calculate_valuation()
 produces valid results when given a mocked connector.
 """
 
-import pytest
 from unittest.mock import MagicMock
+
 from valuation_service.service import ValuationService
+
 from valuation_service.connectors import BaseConnector
 
 

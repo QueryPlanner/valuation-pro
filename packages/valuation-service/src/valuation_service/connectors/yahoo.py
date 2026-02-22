@@ -1,6 +1,6 @@
+import datetime
 from typing import Any, Dict
 
-import datetime
 import pandas as pd
 import yfinance as yf
 
@@ -19,7 +19,7 @@ class YahooFinanceConnector(BaseConnector):
         inc = stock.income_stmt
         bal = stock.balance_sheet
         cf = stock.cashflow
-        
+
         if as_of_date:
             inc = self._filter_cols_by_date(inc, as_of_date)
             bal = self._filter_cols_by_date(bal, as_of_date)
@@ -37,13 +37,16 @@ class YahooFinanceConnector(BaseConnector):
         info = stock.info
 
         risk_free_rate = self._get_risk_free_rate()
-        
+
         price = info.get("currentPrice") or info.get("regularMarketPrice")
-        
+
         if as_of_date:
             try:
-                # fetch historical price
                 end_dt = datetime.datetime.strptime(as_of_date, "%Y-%m-%d") + datetime.timedelta(days=1)
+            except ValueError as e:
+                raise ValueError(f"Invalid as_of_date format: {as_of_date}") from e
+
+            try:
                 hist = stock.history(end=end_dt.strftime("%Y-%m-%d"))
                 if not hist.empty:
                     price = float(hist["Close"].iloc[-1])
@@ -82,6 +85,14 @@ class YahooFinanceConnector(BaseConnector):
             if q_bal.empty:
                 ann_bal = stock.balance_sheet
                 q_bal = self._filter_cols_by_date(ann_bal, as_of_date)
+
+            try:
+                end_dt = datetime.datetime.strptime(as_of_date, "%Y-%m-%d") + datetime.timedelta(days=1)
+                hist = stock.history(end=end_dt.strftime("%Y-%m-%d"))
+                if not hist.empty:
+                    info["currentPrice"] = float(hist["Close"].iloc[-1])
+            except Exception:
+                pass
 
 
         data = {}
@@ -187,20 +198,21 @@ class YahooFinanceConnector(BaseConnector):
         if df.empty or not as_of_date: return df
         try:
             dt_limit = datetime.datetime.strptime(as_of_date, "%Y-%m-%d").date()
-        except ValueError:
-            return df
-        
-        valid_cols = [c for c in df.columns if hasattr(c, 'date') and c.date() <= dt_limit]
-        if not valid_cols:
-            valid_cols = []
-            for c in df.columns:
-                try:
-                    if isinstance(c, str):
-                        c_date = datetime.datetime.strptime(c, "%Y-%m-%d").date()
-                        if c_date <= dt_limit: valid_cols.append(c)
-                    elif hasattr(c, 'date') and c.date() <= dt_limit:
-                        valid_cols.append(c)
-                except: pass
+        except ValueError as e:
+            raise ValueError(f"Invalid as_of_date format. Expected YYYY-MM-DD, got {as_of_date}") from e
+
+        valid_cols = []
+        for c in df.columns:
+            try:
+                if isinstance(c, str):
+                    c_date = datetime.datetime.strptime(c, "%Y-%m-%d").date()
+                    if c_date <= dt_limit: valid_cols.append(c)
+                elif hasattr(c, 'date') and callable(c.date) and c.date() <= dt_limit:
+                    valid_cols.append(c)
+                elif hasattr(c, 'date') and not callable(c.date) and c.date <= dt_limit:
+                    valid_cols.append(c)
+            except Exception:
+                pass
         return df[valid_cols]
 
 

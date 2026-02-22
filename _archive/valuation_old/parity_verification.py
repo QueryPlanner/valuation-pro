@@ -1,10 +1,10 @@
 import argparse
-import logging
-import sys
-import subprocess
 import json
-import os
+import logging
 import math
+import os
+import subprocess
+import sys
 
 # List of keys to compare based on product spec
 COMPARISON_KEYS = [
@@ -35,16 +35,16 @@ def run_extractor(cmd):
     try:
         logging.info(f"Running command: {' '.join(cmd)}")
         result = subprocess.run(cmd, capture_output=True, text=True)
-        
+
         if result.returncode != 0:
             error_msg = result.stderr.strip() if result.stderr else "Unknown error"
             raise RuntimeError(f"Extractor failed with code {result.returncode}: {error_msg}")
-            
+
         try:
             return json.loads(result.stdout)
         except json.JSONDecodeError:
             raise ValueError(f"Invalid JSON output from extractor: {result.stdout[:100]}...")
-            
+
     except Exception as e:
         # Re-raise known errors, wrap others
         if isinstance(e, (RuntimeError, ValueError)):
@@ -88,9 +88,9 @@ def compare_datasets(sec_data, yf_data):
     for key in COMPARISON_KEYS:
         sec_val = sec_data.get(key)
         yf_val = yf_data.get(key)
-        
+
         status = "match"
-        
+
         # Check for missing data
         if sec_val is None and yf_val is None:
             status = "both missing"
@@ -128,7 +128,7 @@ def compare_datasets(sec_data, yf_data):
     # If both fail, check if the sum matches.
     debt_res = next((r for r in results if r['key'] == 'book_debt'), None)
     lease_res = next((r for r in results if r['key'] == 'operating_leases_liability'), None)
-    
+
     if debt_res and lease_res:
         if debt_res['status'] == 'mismatch' and lease_res['status'] == 'mismatch':
             try:
@@ -136,20 +136,20 @@ def compare_datasets(sec_data, yf_data):
                 sec_leases = float(lease_res['sec']) if lease_res['sec'] else 0
                 yf_debt = float(debt_res['yf']) if debt_res['yf'] else 0
                 yf_leases = float(lease_res['yf']) if lease_res['yf'] else 0
-                
+
                 # Case 1: Full Bundle (YF Debt = SEC Debt + SEC Leases)
                 # YF Leases usually 0 in this case.
                 sec_total = sec_debt + sec_leases
                 yf_total = yf_debt + yf_leases
-                
+
                 if math.isclose(sec_total, yf_total, rel_tol=0.01): # 1% tolerance
                     debt_res['status'] = 'match (bundled)'
                     lease_res['status'] = 'match (bundled)'
                     failure_count -= 2
-                
+
                 # Case 2: Partial Bundle (YF Debt = SEC Debt + SEC Non-Current Leases)
                 # YF excludes current portion of leases (treated as other current liab).
-                # We don't have the exact split here, but if YF Debt is between SEC Debt and SEC Total, 
+                # We don't have the exact split here, but if YF Debt is between SEC Debt and SEC Total,
                 # and the difference matches a typical "current portion" ratio (5-30%), we accept it with a note.
                 elif yf_debt > sec_debt and yf_debt < sec_total:
                      diff = sec_total - yf_debt
@@ -159,7 +159,7 @@ def compare_datasets(sec_data, yf_data):
                          debt_res['status'] = 'match (partial bundle)'
                          lease_res['status'] = 'match (partial bundle)'
                          failure_count -= 2
-                
+
                 if debt_res['status'] == 'mismatch':
                      # Case 3: Long-Term Only Bundle (YF = SEC Long Debt + SEC Long Leases)
                      # Sometimes YF ignores current portions completely? (Seen in GOOGL?)
@@ -185,7 +185,7 @@ def parse_arguments():
     parser.add_argument("ticker", help="Stock ticker symbol (e.g., AAPL)")
     parser.add_argument("cik", help="SEC CIK number (e.g., 320193)")
     parser.add_argument("date", help="As-of date for SEC data (YYYY-MM-DD)")
-    
+
     return parser.parse_args()
 
 def main():
@@ -196,36 +196,36 @@ def main():
     try:
         sec_data = get_sec_data(args.cik, args.date)
         yf_data = get_yf_data(args.ticker, args.date)
-        
+
         passed, results = compare_datasets(sec_data, yf_data)
-        
+
         # Console Reporting
         print("\n" + "="*80)
         print(f"PARITY VERIFICATION REPORT: {args.ticker}")
         print("="*80)
-        
+
         print(f"{ 'Key':<30} | {'SEC Value':<18} | {'YF Value':<18} | {'Status':<15}")
         print("-" * 80)
-        
+
         for res in results:
             sec_val = str(res['sec']) if res['sec'] is not None else "N/A"
             yf_val = str(res['yf']) if res['yf'] is not None else "N/A"
-            
+
             # Simple truncation for display cleanly if needed, though 18 chars is usually enough for scientific notation
             if len(sec_val) > 18: sec_val = sec_val[:15] + "..."
             if len(yf_val) > 18: yf_val = yf_val[:15] + "..."
-            
+
             print(f"{res['key']:<30} | {sec_val:<18} | {yf_val:<18} | {res['status']:<15}")
-            
+
         print("-" * 80)
 
         if passed:
-            print(f"\nSTATUS: PASS")
+            print("\nSTATUS: PASS")
             sys.exit(0)
         else:
-            print(f"\nSTATUS: FAIL")
+            print("\nSTATUS: FAIL")
             sys.exit(1)
-            
+
     except Exception as e:
         logging.error(f"Verification process failed: {e}")
         sys.exit(2)

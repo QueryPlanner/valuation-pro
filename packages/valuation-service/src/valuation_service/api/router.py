@@ -65,7 +65,8 @@ def calculate_valuation(request: ValuationRequest):
         connector = ConnectorFactory.get_connector(request.source)
         service = ValuationService(connector)
 
-        result = service.calculate_valuation(request.ticker, request.assumptions, request.as_of_date)
+        assumptions_dict = request.assumptions.model_dump(exclude_unset=True) if request.assumptions else None
+        result = service.calculate_valuation(request.ticker, assumptions_dict, request.as_of_date)
         return sanitize_for_json(result)
     except ValueError as e:
         logger.warning(f"Bad Request for {request.ticker}: {e}")

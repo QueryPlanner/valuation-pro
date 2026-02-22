@@ -22,10 +22,10 @@ Usage:
     python -m valuation_service.tests.test_parity
 """
 
-import sys
 import math
+import sys
 from dataclasses import fields
-from typing import Dict, Any, List
+from typing import List
 
 from valuation_engine.fcff_ginzu.engine import (
     GinzuInputs,
@@ -33,9 +33,9 @@ from valuation_engine.fcff_ginzu.engine import (
     compute_ginzu,
 )
 from valuation_engine.fcff_ginzu.inputs_builder import build_ginzu_inputs
-from valuation_service.connectors.yahoo import YahooFinanceConnector
 from valuation_service.service import ValuationService
 
+from valuation_service.connectors.yahoo import YahooFinanceConnector
 
 # Fixed assumptions that both paths will use — matches the archived
 # run_yf_valuation.py "FORCED PARITY" defaults.
@@ -140,12 +140,12 @@ def run_parity_test(ticker: str, connector: YahooFinanceConnector) -> bool:
     assumptions["margin_y1"] = current_margin
 
     # 3. Engine path: build inputs via shared builder and compute
-    print(f"\n  [Engine Path] Building GinzuInputs via shared builder...")
+    print("\n  [Engine Path] Building GinzuInputs via shared builder...")
     engine_inputs = build_ginzu_inputs(data, assumptions)
     engine_outputs = compute_ginzu(engine_inputs)
 
     # 4. Service path: uses the same builder internally
-    print(f"  [Service Path] Building GinzuInputs via service...")
+    print("  [Service Path] Building GinzuInputs via service...")
     service = ValuationService(connector)
     # We need to call _prepare internally — replicate what calculate_valuation does
     # but with the same data (not re-fetching)
@@ -164,7 +164,7 @@ def run_parity_test(ticker: str, connector: YahooFinanceConnector) -> bool:
             print(m)
         return False
     else:
-        print(f"\n  ✅ PASSED — All inputs and outputs match exactly!")
+        print("\n  ✅ PASSED — All inputs and outputs match exactly!")
         print(f"     Value per share : ${engine_outputs.estimated_value_per_share:,.2f}")
         print(f"     Market price    : ${engine_inputs.stock_price:,.2f}")
         ratio = engine_outputs.estimated_value_per_share / engine_inputs.stock_price if engine_inputs.stock_price > 0 else 0
@@ -191,7 +191,7 @@ def main():
 
     # Summary
     print(f"\n{'='*60}")
-    print(f"  SUMMARY")
+    print("  SUMMARY")
     print(f"{'='*60}")
     passed = 0
     failed = 0

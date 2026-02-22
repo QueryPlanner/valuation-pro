@@ -1,5 +1,6 @@
-import duckdb
 import os
+
+import duckdb
 
 DB_MAIN = '/Volumes/lord-ssd/data/sec-data/sec-notes.duckdb'
 DB_SOURCE = 'sec_fsn.duckdb'
@@ -10,24 +11,24 @@ def test_merge():
         os.remove(DB_TEST)
 
     con = duckdb.connect(DB_TEST)
-    
+
     # 1. Replicate Schema from Main DB
     print("Replicating schema...")
     con.execute(f"ATTACH '{DB_MAIN}' AS main_db")
     con.execute("CREATE TABLE sub AS SELECT * FROM main_db.sub WHERE 1=0") # Empty table
     con.execute("CREATE TABLE num AS SELECT * FROM main_db.num WHERE 1=0") # Empty table
     con.execute("DETACH main_db")
-    
+
     # 2. Attach Source
     print("Attaching source...")
     con.execute(f"ATTACH '{DB_SOURCE}' AS source_db")
-    
+
     # 3. Test SUB Merge (Handling types and order)
     print("Testing SUB merge...")
     # Get column names from target to ensure order
     cols_sub = [row[0] for row in con.execute("DESCRIBE sub").fetchall()]
     cols_sub_str = ", ".join(cols_sub)
-    
+
     # Construct Select with Casts
     # mapping: source_col -> cast expression
     # default to casting to VARCHAR
@@ -36,9 +37,9 @@ def test_merge():
         # Check if source has this col
         # In source, some might be different types
         select_parts.append(f"CAST(source_db.sub.{col} AS VARCHAR)")
-        
+
     select_query = ", ".join(select_parts)
-    
+
     # Insert a few rows that are NOT in main (simulated by just taking some from source)
     sql_sub = f"""
     INSERT INTO sub ({cols_sub_str})
@@ -57,13 +58,13 @@ def test_merge():
     print("Testing NUM merge...")
     cols_num = [row[0] for row in con.execute("DESCRIBE num").fetchall()]
     cols_num_str = ", ".join(cols_num)
-    
+
     select_parts_num = []
     for col in cols_num:
         select_parts_num.append(f"CAST(source_db.num.{col} AS VARCHAR)")
-    
+
     select_query_num = ", ".join(select_parts_num)
-    
+
     sql_num = f"""
     INSERT INTO num ({cols_num_str})
     SELECT {select_query_num}

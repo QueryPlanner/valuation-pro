@@ -1,12 +1,13 @@
-import unittest
-import sys
-import json
 import io
-from unittest.mock import patch, MagicMock
+import sys
+import unittest
+from unittest.mock import MagicMock, patch
+
 from valuation import parity_verification
 
+
 class TestParityVerification(unittest.TestCase):
-    
+
     def test_argument_parsing_success(self):
         """Test that valid arguments are parsed correctly."""
         test_args = ['parity_verification.py', 'AAPL', '320193', '2024-01-01']
@@ -21,17 +22,17 @@ class TestParityVerification(unittest.TestCase):
         """Test successful execution of SEC extractor."""
         mock_run.return_value.returncode = 0
         mock_run.return_value.stdout = '{"test": "data"}'
-        
+
         result = parity_verification.get_sec_data("320193", "2024-01-01")
         self.assertEqual(result, {"test": "data"})
         mock_run.assert_called_once()
-        
+
     @patch('subprocess.run')
     def test_run_yf_extractor_success(self, mock_run):
         """Test successful execution of YF extractor."""
         mock_run.return_value.returncode = 0
         mock_run.return_value.stdout = '{"test": "data"}'
-        
+
         result = parity_verification.get_yf_data("AAPL")
         self.assertEqual(result, {"test": "data"})
         mock_run.assert_called_once()
@@ -41,7 +42,7 @@ class TestParityVerification(unittest.TestCase):
         """Test handling of non-zero exit code."""
         mock_run.return_value.returncode = 1
         mock_run.return_value.stderr = "Error message"
-        
+
         with self.assertRaises(RuntimeError) as cm:
             parity_verification.get_sec_data("320193", "2024-01-01")
         self.assertIn("SEC extractor failed", str(cm.exception))
@@ -67,7 +68,7 @@ class TestParityVerification(unittest.TestCase):
         """Test handling of invalid JSON output."""
         mock_run.return_value.returncode = 0
         mock_run.return_value.stdout = "Not JSON"
-        
+
         with self.assertRaises(ValueError) as cm:
             parity_verification.get_yf_data("AAPL")
         self.assertIn("Invalid JSON", str(cm.exception))
@@ -98,7 +99,7 @@ class TestParityVerification(unittest.TestCase):
         """Test comparison with value mismatches."""
         sec_data = {"revenues_base": 100.0}
         yf_data = {"revenues_base": 101.0}
-        
+
         with patch('valuation.parity_verification.COMPARISON_KEYS', ["revenues_base"]):
             passed, mismatches = parity_verification.compare_datasets(sec_data, yf_data)
         self.assertFalse(passed)
@@ -109,7 +110,7 @@ class TestParityVerification(unittest.TestCase):
         """Test comparison when a key is missing in one dataset."""
         sec_data = {"revenues_base": 100.0}
         yf_data = {}
-        
+
         with patch('valuation.parity_verification.COMPARISON_KEYS', ["revenues_base"]):
             passed, mismatches = parity_verification.compare_datasets(sec_data, yf_data)
         self.assertFalse(passed)
@@ -120,7 +121,7 @@ class TestParityVerification(unittest.TestCase):
         """Test comparison when a key is missing in SEC dataset."""
         sec_data = {}
         yf_data = {"revenues_base": 100.0}
-        
+
         with patch('valuation.parity_verification.COMPARISON_KEYS', ["revenues_base"]):
             passed, mismatches = parity_verification.compare_datasets(sec_data, yf_data)
         self.assertFalse(passed)
@@ -131,7 +132,7 @@ class TestParityVerification(unittest.TestCase):
         """Test comparison respects floating point tolerance."""
         sec_data = {"revenues_base": 100.0000001}
         yf_data = {"revenues_base": 100.0000002}
-        
+
         with patch('valuation.parity_verification.COMPARISON_KEYS', ["revenues_base"]):
             # Should match if close enough (default tolerance usually small)
             passed, mismatches = parity_verification.compare_datasets(sec_data, yf_data)
@@ -156,7 +157,7 @@ class TestParityVerification(unittest.TestCase):
         """Test comparison with non-numeric values."""
         sec_data = {"key": "value1"}
         yf_data = {"key": "value2"}
-        
+
         with patch('valuation.parity_verification.COMPARISON_KEYS', ["key"]):
              passed, mismatches = parity_verification.compare_datasets(sec_data, yf_data)
         self.assertFalse(passed)
@@ -166,7 +167,7 @@ class TestParityVerification(unittest.TestCase):
         """Test comparison with matching non-numeric values."""
         sec_data = {"key": "same"}
         yf_data = {"key": "same"}
-        
+
         with patch('valuation.parity_verification.COMPARISON_KEYS', ["key"]):
              passed, mismatches = parity_verification.compare_datasets(sec_data, yf_data)
         self.assertTrue(passed)
@@ -193,19 +194,19 @@ class TestParityVerification(unittest.TestCase):
     def test_main_reporting_pass(self, mock_args, mock_exit, mock_yf, mock_sec, mock_setup_logging):
         """Test main function reporting for a passing case."""
         mock_args.return_value = MagicMock(ticker="AAPL", cik="123", date="2020-01-01")
-        
+
         # Mock matching data
         data = {"revenues_base": 100.0}
         mock_sec.return_value = data
         mock_yf.return_value = data
-        
+
         with patch('valuation.parity_verification.COMPARISON_KEYS', ["revenues_base"]):
             # Capture stdout
             with patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
                 # Use assertLogs to verify logging as well
                 with self.assertLogs(level='INFO') as log:
                     parity_verification.main()
-        
+
         output = mock_stdout.getvalue()
         self.assertIn("PASS", output)
         self.assertNotIn("FAIL", output)
@@ -219,15 +220,15 @@ class TestParityVerification(unittest.TestCase):
     def test_main_reporting_fail(self, mock_args, mock_exit, mock_yf, mock_sec):
         """Test main function reporting for a failing case."""
         mock_args.return_value = MagicMock(ticker="AAPL", cik="123", date="2020-01-01")
-        
+
         # Mock mismatching data
         mock_sec.return_value = {"revenues_base": 100.0}
         mock_yf.return_value = {"revenues_base": 200.0}
-        
+
         with patch('valuation.parity_verification.COMPARISON_KEYS', ["revenues_base"]):
              with patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
                 parity_verification.main()
-        
+
         output = mock_stdout.getvalue()
         self.assertIn("FAIL", output)
         self.assertIn("revenues_base", output)
@@ -243,10 +244,10 @@ class TestParityVerification(unittest.TestCase):
         """Test main function exception handling."""
         mock_args.return_value = MagicMock(ticker="AAPL", cik="123", date="2020-01-01")
         mock_sec.side_effect = RuntimeError("Critical Error")
-        
+
         # We need to capture the logs to verify the error logging
         with self.assertLogs(level='ERROR') as log:
             parity_verification.main()
-            
+
         self.assertTrue(any("Verification process failed: Critical Error" in m for m in log.output))
         mock_exit.assert_called_with(2)

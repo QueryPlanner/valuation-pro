@@ -6,10 +6,11 @@ End-to-end test going through API → Connector → Service → Engine → API R
 Mocks only the lowest level (yfinance calls).
 """
 
-from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock, PropertyMock
-import pandas as pd
+from unittest.mock import MagicMock, patch
+
 import numpy as np
+import pandas as pd
+from fastapi.testclient import TestClient
 from valuation_service.main import app
 
 client = TestClient(app)

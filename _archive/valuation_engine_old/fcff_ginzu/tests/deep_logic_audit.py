@@ -1,19 +1,21 @@
 
 import unittest
+
 import openpyxl
 from valuation_engine.fcff_ginzu import (
     GinzuInputs,
-    compute_ginzu,
     RnDCapitalizationInputs,
+    compute_ginzu,
     compute_rnd_capitalization_adjustments,
 )
+
 
 class TestDeepLogicAudit(unittest.TestCase):
     def test_audit_amazon_baseline(self):
         # 1. Load Excel Data
         wb = openpyxl.load_workbook("valuation_engine/fcff_ginzu/spreadsheets/fcffsimpleginzu.xlsx", data_only=True)
         ws = wb["Valuation output"]
-        
+
         def get_row_series(row_idx, start_col=3, length=10):
             return [ws.cell(row=row_idx, column=c).value for c in range(start_col, start_col + length)]
 
@@ -34,7 +36,7 @@ class TestDeepLogicAudit(unittest.TestCase):
             past_year_rnd_expenses=[73213.0, 56052.0, 42740.0],
         )
         rnd_asset, rnd_adj = compute_rnd_capitalization_adjustments(rnd_inputs)
-        
+
         inputs = GinzuInputs(
             revenues_base=574785.0,
             ebit_reported_base=36852.0,
@@ -61,12 +63,12 @@ class TestDeepLogicAudit(unittest.TestCase):
             rnd_ebit_adjustment=rnd_adj,
             mature_market_erp=0.0411,
         )
-        
+
         outputs = compute_ginzu(inputs)
 
         # 3. Compare Year-by-Year (Years 1-10)
         print("\n--- DEEP AUDIT: Engine vs Excel (10-Year Forecast) ---")
-        
+
         metrics = [
             ("Revenues", excel_data["revenues"], outputs.revenues[1:]),
             ("EBIT", excel_data["ebit"], outputs.ebit[1:]),
@@ -85,7 +87,7 @@ class TestDeepLogicAudit(unittest.TestCase):
                 diff = abs(ex - en)
                 # Use a small percentage tolerance (0.01%) for rounding diffs
                 tolerance = max(1.0, abs(ex) * 0.0001)
-                
+
                 try:
                     self.assertAlmostEqual(ex, en, delta=tolerance)
                     # print(f"  Year {yr+1}: OK (Diff: {diff:.4f})")

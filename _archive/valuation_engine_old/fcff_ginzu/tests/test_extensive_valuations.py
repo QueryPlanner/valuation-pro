@@ -1,12 +1,14 @@
 
 import unittest
 from dataclasses import replace
+
 from valuation_engine.fcff_ginzu import (
     GinzuInputs,
-    compute_ginzu,
     RnDCapitalizationInputs,
+    compute_ginzu,
     compute_rnd_capitalization_adjustments,
 )
+
 
 class TestExtensiveValuations(unittest.TestCase):
     def get_amzn_baseline_inputs(self):
@@ -17,7 +19,7 @@ class TestExtensiveValuations(unittest.TestCase):
             past_year_rnd_expenses=[73213.0, 56052.0, 42740.0],
         )
         rnd_asset, rnd_adj = compute_rnd_capitalization_adjustments(rnd_inputs)
-        
+
         return GinzuInputs(
             revenues_base=574785.0,
             ebit_reported_base=36852.0,
@@ -76,15 +78,15 @@ class TestExtensiveValuations(unittest.TestCase):
         print(f"\nTEST CASE: {name}")
         print(f"  Inputs: Growth={inputs.rev_growth_y1:.1%}, CAGR={inputs.rev_cagr_y2_5:.1%}, Target Margin={inputs.margin_target:.1%}, WACC={inputs.wacc_initial:.2%}")
         print(f"  Result: Value/Share = {outputs.estimated_value_per_share:,.2f}")
-        
+
         if expected_vps is not None:
-            self.assertAlmostEqual(outputs.estimated_value_per_share, expected_vps, delta=0.2, 
+            self.assertAlmostEqual(outputs.estimated_value_per_share, expected_vps, delta=0.2,
                                  msg=f"{name}: Value/Share mismatch")
-        
+
         if expected_op_assets is not None:
             self.assertAlmostEqual(outputs.value_of_operating_assets, expected_op_assets, delta=expected_op_assets * 0.005,
                                  msg=f"{name}: Op Assets mismatch")
-        
+
         return outputs
 
     # --- AMZN TESTS ---
@@ -125,7 +127,7 @@ class TestExtensiveValuations(unittest.TestCase):
 
     def test_amzn_08_with_failure(self):
         inputs = self.get_amzn_baseline_inputs()
-        inputs = replace(inputs, override_failure_probability=True, probability_of_failure=0.10, 
+        inputs = replace(inputs, override_failure_probability=True, probability_of_failure=0.10,
                          distress_proceeds_percent=0.50, distress_proceeds_tie="V")
         self.run_test_case("AMZN 10% Failure Prob", inputs, expected_vps=127.47)
 

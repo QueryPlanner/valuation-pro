@@ -89,8 +89,8 @@ def build_ginzu_inputs(
     # ------------------------------------------------------------------ #
     # 1. R&D Capitalization
     # ------------------------------------------------------------------ #
-    rnd_history = data.get("rnd_history", [])
-    current_rnd = data.get("rnd_expense", 0.0)
+    rnd_history = assumptions.get("rnd_history", data.get("rnd_history", []))
+    current_rnd = get_val("rnd_expense", "rnd_expense", 0.0)
 
     capitalize_rnd = assumptions.get("capitalize_rnd", False)
 
@@ -118,12 +118,12 @@ def build_ginzu_inputs(
     # ------------------------------------------------------------------ #
     # 2. Base Financials
     # ------------------------------------------------------------------ #
-    revenues = data.get("revenues_base", 0.0)
-    ebit = data.get("ebit_reported_base", 0.0)
+    revenues = get_val("revenues_base", "revenues_base", 0.0)
+    ebit = get_val("ebit_reported_base", "ebit_reported_base", 0.0)
 
-    book_equity = data.get("book_equity", 0.0)
-    book_debt = data.get("book_debt", 0.0)
-    cash = data.get("cash", 0.0)
+    book_equity = get_val("book_equity", "book_equity", 0.0)
+    book_debt = get_val("book_debt", "book_debt", 0.0)
+    cash = get_val("cash", "cash", 0.0)
 
     # Adjust Book Equity for R&D if capitalized
     if capitalize_rnd:

@@ -1,8 +1,9 @@
-import yfinance as yf
-import pandas as pd
+import datetime
 import json
 import sys
-import datetime
+
+import pandas as pd
+import yfinance as yf
 
 # Country Tax Rates (Simplified Mock) - Matches sec_data_extractor.py
 TAX_RATES = {
@@ -22,7 +23,7 @@ def get_ltm_value(df, row_name, num_quarters=4, offset_quarters=0):
     """
     if row_name not in df.index:
         return 0.0
-    
+
     # Take slice [offset : offset + num_quarters]
     subset = df.loc[row_name].iloc[offset_quarters : offset_quarters + num_quarters]
     return float(subset.sum())
@@ -33,17 +34,17 @@ def get_mrq_value(df, row_name):
     """
     if row_name not in df.index:
         return 0.0
-    
+
     # First column is the latest
     val = df.loc[row_name].iloc[0]
     return float(val) if not pd.isna(val) else 0.0
 
 def extract_data(ticker_symbol, as_of_date=None):
     ticker = yf.Ticker(ticker_symbol)
-    
+
     # Check if data exists
     if not ticker.info or 'regularMarketPrice' not in ticker.info:
-        # Sometimes info is empty if ticker is bad or rate limited, 
+        # Sometimes info is empty if ticker is bad or rate limited,
         # but let's try fetching financials to be sure.
         pass
 
@@ -51,7 +52,7 @@ def extract_data(ticker_symbol, as_of_date=None):
     q_inc = ticker.quarterly_financials
     q_bal = ticker.quarterly_balance_sheet
     ann_inc = ticker.financials
-    
+
     if q_inc.empty or q_bal.empty:
          return {"error": f"No financial data found for {ticker_symbol}"}
 
@@ -69,7 +70,7 @@ def extract_data(ticker_symbol, as_of_date=None):
 
         # Filter columns: keep only those <= dt_limit
         # Assumes columns are timestamps (datetime.datetime)
-        
+
         def filter_cols(df):
             if df.empty: return df
             # Convert cols to date for comparison
@@ -136,7 +137,7 @@ def extract_data(ticker_symbol, as_of_date=None):
                  data['revenue_growth_actual'] = 0.05
         else:
              data['revenue_growth_actual'] = 0.05
-    
+
     # Historical R&D for Capitalization
     if 'Research And Development' in ann_inc.index:
         # Get past years excluding the most recent (which might overlap with LTM)
@@ -149,7 +150,7 @@ def extract_data(ticker_symbol, as_of_date=None):
 
     tax_exp = get_ltm_value(q_inc, 'Tax Provision')
     pre_tax_inc = get_ltm_value(q_inc, 'Pretax Income')
-    
+
     # Meta / Flags
     country = info.get('country', 'US')
     marginal_rate = TAX_RATES.get(country, 0.25)
@@ -171,7 +172,7 @@ def extract_data(ticker_symbol, as_of_date=None):
     # Rule: Book equity... include minority or non-controlling interests listed separately.
     stockholders_equity = get_mrq_value(q_bal, 'Stockholders Equity')
     total_equity_gross_mi = get_mrq_value(q_bal, 'Total Equity Gross Minority Interest')
-    
+
     # If Total Equity (Gross MI) is available and larger than SE, use it implies MI is there.
     # Otherwise fallback to SE.
     if total_equity_gross_mi > 0:
@@ -190,7 +191,7 @@ def extract_data(ticker_symbol, as_of_date=None):
     # Rule: Book value of interest bearing debt... If capitalizing leases [accountants], include those.
     # YF 'Total Debt' typically includes Capital/Finance Leases and often Operating Leases under new standards.
     data['book_debt'] = get_mrq_value(q_bal, 'Total Debt')
-    
+
     # Cash & Marketable Securities
     # "Cash Cash Equivalents And Short Term Investments" usually captures both.
     data['cash'] = get_mrq_value(q_bal, 'Cash Cash Equivalents And Short Term Investments')
@@ -202,10 +203,10 @@ def extract_data(ticker_symbol, as_of_date=None):
 
     # Operating Leases
     # Rule: If accountants are not treating it as debt... enter yes.
-    # We assume YF Total Debt includes it if on BS. 
+    # We assume YF Total Debt includes it if on BS.
     # To avoid double counting, we set lease liability to 0 for the "extra" add-on unless we explicitly want to decouple.
-    data['operating_leases_liability'] = 0.0 
-    
+    data['operating_leases_liability'] = 0.0
+
     # Cross Holdings
     # Rule: Minority holdings in other companies... Investmentin Financial Assets.
     # We check for "Investmentin Financial Assets" or "Other Non Current Assets" if strict investments are missing.
@@ -218,12 +219,12 @@ def extract_data(ticker_symbol, as_of_date=None):
     shares = None
     if not as_of_date:
         shares = info.get('sharesOutstanding')
-    
+
     if not shares:
         shares = get_mrq_value(q_bal, 'Ordinary Shares Number')
-        
-    # If still nothing and we have no date (or even if we do), try info as fallback if we are desperate? 
-    # But if as_of_date is set, info is wrong. Better to be 0 than wrong? 
+
+    # If still nothing and we have no date (or even if we do), try info as fallback if we are desperate?
+    # But if as_of_date is set, info is wrong. Better to be 0 than wrong?
     # Let's fallback to info ONLY if as_of_date is NOT set or if we decide live data is better than nothing.
     # User prefers "parity", so accuracy matters.
     if not shares and not as_of_date:
@@ -231,7 +232,7 @@ def extract_data(ticker_symbol, as_of_date=None):
 
     data['shares_outstanding'] = float(shares) if shares else 0.0
 
-    
+
     data['rnd_input_flag'] = 'yes' if data['rnd_expense'] > 0 else 'no'
     data['operating_leases_flag'] = 'no' # Simplified for YF path, assuming included in Debt
 
@@ -255,7 +256,7 @@ def extract_data(ticker_symbol, as_of_date=None):
         'source': 'yahoo_finance',
         'currency': info.get('currency', 'USD')
     }
-    
+
     if as_of_date:
         data['metadata']['as_of_date'] = str(as_of_date)
 
@@ -265,10 +266,10 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python yf_data_extractor.py <TICKER> [AS_OF_DATE]")
         sys.exit(1)
-        
+
     ticker = sys.argv[1]
     as_of_date = sys.argv[2] if len(sys.argv) > 2 else None
-    
+
     try:
         result = extract_data(ticker, as_of_date=as_of_date)
         print(json.dumps(result, indent=4))

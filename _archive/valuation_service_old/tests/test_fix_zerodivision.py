@@ -7,7 +7,7 @@ or missing shares without raising ZeroDivisionError.
 """
 
 import pytest
-from valuation_engine.fcff_ginzu.engine import GinzuInputs, InputError
+from valuation_engine.fcff_ginzu.engine import InputError
 from valuation_engine.fcff_ginzu.inputs_builder import build_ginzu_inputs
 
 

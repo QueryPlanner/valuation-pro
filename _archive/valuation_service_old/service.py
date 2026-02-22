@@ -9,12 +9,13 @@ All input-preparation and computation logic lives in **valuation_engine** so
 there is exactly one source of truth.
 """
 
-from typing import Dict, Any, Optional
 import logging
+from typing import Any, Dict, Optional
 
-from .connectors import BaseConnector
 from valuation_engine.fcff_ginzu.engine import compute_ginzu
 from valuation_engine.fcff_ginzu.inputs_builder import build_ginzu_inputs
+
+from .connectors import BaseConnector
 
 logger = logging.getLogger(__name__)
 
