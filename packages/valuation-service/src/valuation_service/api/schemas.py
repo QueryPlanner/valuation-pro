@@ -1,4 +1,3 @@
-
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -82,13 +81,18 @@ class ValuationAssumptions(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
+
 class ValuationRequest(BaseModel):
     """Request body for the valuation calculation endpoint."""
 
     ticker: str = Field(..., description="Stock ticker symbol (e.g., AAPL)")
     source: str = Field("yahoo", description="Data source connector")
-    as_of_date: Optional[str] = Field(None, description="Optional historical date (YYYY-MM-DD) for retrospective testing")
-    assumptions: Optional[ValuationAssumptions] = Field(None, description="Optional overrides for valuation assumptions")
+    as_of_date: Optional[str] = Field(
+        None, description="Optional historical date (YYYY-MM-DD) for retrospective testing"
+    )
+    assumptions: Optional[ValuationAssumptions] = Field(
+        None, description="Optional overrides for valuation assumptions"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -105,9 +109,8 @@ class ValuationRequest(BaseModel):
                     "margin_target": 0.14,
                     "sales_to_capital_1_5": 1.5,
                     "sales_to_capital_6_10": 1.5,
-                    "mature_market_erp": 0.0411
+                    "mature_market_erp": 0.0411,
                 },
             }
         }
     )
-

@@ -22,7 +22,12 @@ class ValuationService:
     def __init__(self, connector: BaseConnector):
         self.connector = connector
 
-    def calculate_valuation(self, ticker: str, assumptions: Optional[Dict[str, Any]] = None, as_of_date: Optional[str] = None) -> Dict[str, Any]:
+    def calculate_valuation(
+        self,
+        ticker: str,
+        assumptions: Optional[Dict[str, Any]] = None,
+        as_of_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Orchestrates the valuation process.
 

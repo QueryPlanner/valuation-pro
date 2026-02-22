@@ -74,7 +74,6 @@ class YahooFinanceConnector(BaseConnector):
         ann_inc = stock.financials
         info = stock.info
 
-
         # --- Date Filtering ---
         if as_of_date:
             q_inc = self._filter_cols_by_date(q_inc, as_of_date)
@@ -93,7 +92,6 @@ class YahooFinanceConnector(BaseConnector):
                     info["currentPrice"] = float(hist["Close"].iloc[-1])
             except Exception:
                 pass
-
 
         data = {}
 
@@ -195,7 +193,8 @@ class YahooFinanceConnector(BaseConnector):
 
     # --- Helpers ---
     def _filter_cols_by_date(self, df: pd.DataFrame, as_of_date: str) -> pd.DataFrame:
-        if df.empty or not as_of_date: return df
+        if df.empty or not as_of_date:
+            return df
         try:
             dt_limit = datetime.datetime.strptime(as_of_date, "%Y-%m-%d").date()
         except ValueError as e:
@@ -206,15 +205,15 @@ class YahooFinanceConnector(BaseConnector):
             try:
                 if isinstance(c, str):
                     c_date = datetime.datetime.strptime(c, "%Y-%m-%d").date()
-                    if c_date <= dt_limit: valid_cols.append(c)
-                elif hasattr(c, 'date') and callable(c.date) and c.date() <= dt_limit:
+                    if c_date <= dt_limit:
+                        valid_cols.append(c)
+                elif hasattr(c, "date") and callable(c.date) and c.date() <= dt_limit:
                     valid_cols.append(c)
-                elif hasattr(c, 'date') and not callable(c.date) and c.date <= dt_limit:
+                elif hasattr(c, "date") and not callable(c.date) and c.date <= dt_limit:
                     valid_cols.append(c)
             except Exception:
                 pass
         return df[valid_cols]
-
 
     def _get_ltm_value(self, df: pd.DataFrame, row_name: str, num_quarters: int = 4) -> float:
         """Sums `num_quarters` values for a given row."""
