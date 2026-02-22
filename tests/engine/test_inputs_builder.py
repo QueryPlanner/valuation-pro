@@ -13,6 +13,7 @@ from valuation_engine import GinzuInputs, InputError, build_ginzu_inputs, comput
 # Input mapping from raw data
 # ---------------------------------------------------------------------------
 
+
 def test_input_mapping_from_raw_data():
     """build_ginzu_inputs should produce a valid GinzuInputs from raw data."""
     data = {
@@ -105,6 +106,7 @@ def test_derived_defaults():
 # Default assumptions and edge-case heuristics
 # ---------------------------------------------------------------------------
 
+
 def test_negative_invested_capital_fallback():
     """When invested capital < 0, sales-to-capital should use the fallback (1.5)."""
     data = {
@@ -168,6 +170,7 @@ def test_default_growth_and_wacc():
 # ---------------------------------------------------------------------------
 # Zero-division safeguards
 # ---------------------------------------------------------------------------
+
 
 def test_zero_revenue_margin_fallback():
     """When revenue is 0, margin should fall back to 0.10 (not ZeroDivisionError)."""

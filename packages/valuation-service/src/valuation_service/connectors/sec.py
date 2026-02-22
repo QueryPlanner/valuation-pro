@@ -19,5 +19,6 @@ class SECConnector(BaseConnector):
     def get_valuation_inputs(self, ticker: str) -> Dict[str, Any]:
         raise NotImplementedError("SEC Connector is not yet implemented.")
 
+
 # Register the connector
 ConnectorFactory.register("sec", SECConnector)

@@ -29,8 +29,10 @@ class BaseConnector(ABC):
         """
         pass
 
+
 class ConnectorFactory:
     """Simple factory to manage data connectors (Singleton Pattern)."""
+
     _connector_classes: Dict[str, Type[BaseConnector]] = {}
     _instances: Dict[str, BaseConnector] = {}
 

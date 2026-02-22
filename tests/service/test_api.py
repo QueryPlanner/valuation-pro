@@ -16,6 +16,7 @@ client = TestClient(app)
 # Root & basic endpoints
 # ---------------------------------------------------------------------------
 
+
 def test_read_root():
     response = client.get("/")
     assert response.status_code == 200
@@ -42,6 +43,7 @@ def test_openapi():
 # Logging middleware
 # ---------------------------------------------------------------------------
 
+
 def test_logging_middleware(caplog):
     """Test that requests are logged."""
     with caplog.at_level(logging.INFO):
@@ -59,6 +61,7 @@ def test_logging_middleware(caplog):
 # ---------------------------------------------------------------------------
 # API endpoint mocking
 # ---------------------------------------------------------------------------
+
 
 def test_get_financials():
     mock_data = {
@@ -126,6 +129,7 @@ def test_calculate_valuation():
 # Error handling
 # ---------------------------------------------------------------------------
 
+
 def test_api_validation_error():
     with patch("valuation_service.api.router.ConnectorFactory.get_connector") as mock_factory:
         mock_factory.side_effect = ValueError("Invalid Source")
@@ -173,6 +177,7 @@ def test_middleware_internal_error():
 # ---------------------------------------------------------------------------
 # JSON compliance (NaN / Infinity sanitization)
 # ---------------------------------------------------------------------------
+
 
 def test_get_financials_with_nan_and_inf():
     mock_data = {

@@ -122,6 +122,7 @@ def test_get_valuation_inputs_annual_fallback(mock_yfinance_ticker):
 # Yahoo extraction tests
 # ---------------------------------------------------------------------------
 
+
 def test_yahoo_financials_structure(connector):
     """Test that the returned dictionary has the expected keys even if data is empty."""
     with patch("yfinance.Ticker") as mock_ticker:

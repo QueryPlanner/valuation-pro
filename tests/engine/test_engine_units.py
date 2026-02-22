@@ -1,4 +1,3 @@
-
 import unittest
 from dataclasses import replace
 
@@ -16,7 +15,6 @@ from valuation_engine.engine import (
 
 
 class TestEngineUnits(unittest.TestCase):
-
     def test_nol_logic(self):
         # Case 1: Simple NOL usage
         # Need lists of length 11

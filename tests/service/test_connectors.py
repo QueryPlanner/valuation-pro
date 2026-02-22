@@ -12,6 +12,7 @@ from valuation_service.connectors import BaseConnector, ConnectorFactory, SECCon
 # BaseConnector interface
 # ---------------------------------------------------------------------------
 
+
 class MockConnector(BaseConnector):
     def get_financials(self, ticker: str) -> Dict[str, Any]:
         return {"mock": "financials"}
@@ -49,6 +50,7 @@ def test_factory_invalid_connector():
 # Singleton pattern
 # ---------------------------------------------------------------------------
 
+
 class MockStatefulConnector(BaseConnector):
     def __init__(self):
         self.call_count = 0
@@ -82,6 +84,7 @@ def test_connector_singleton_pattern():
 # ---------------------------------------------------------------------------
 # SEC connector placeholder
 # ---------------------------------------------------------------------------
+
 
 def test_sec_connector_registered():
     connector = ConnectorFactory.get_connector("sec")

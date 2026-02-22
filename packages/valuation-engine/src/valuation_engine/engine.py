@@ -424,11 +424,7 @@ def compute_ginzu(inputs: GinzuInputs) -> GinzuOutputs:
     cash_adjusted = _compute_cash_adjusted_for_trapped_cash(inputs)
 
     value_of_equity = (
-        value_of_operating_assets
-        - debt
-        - inputs.minority_interests
-        + cash_adjusted
-        + inputs.non_operating_assets
+        value_of_operating_assets - debt - inputs.minority_interests + cash_adjusted + inputs.non_operating_assets
     )
 
     options_value = inputs.options_value if inputs.has_employee_options else 0.0
@@ -805,5 +801,3 @@ def _compute_cash_adjusted_for_trapped_cash(inputs: GinzuInputs) -> float:
         return inputs.cash
     additional_tax = inputs.trapped_cash_amount * (inputs.tax_rate_marginal - inputs.trapped_cash_foreign_tax_rate)
     return inputs.cash - additional_tax
-
-
