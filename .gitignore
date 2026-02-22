@@ -226,3 +226,9 @@ conductor/
 # Project specific ignores
 conductor/
 .coverage
+
+# UV
+.python-version
+
+# Pytest
+.pytest_cache/
