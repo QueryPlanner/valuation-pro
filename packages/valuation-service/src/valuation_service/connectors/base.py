@@ -16,7 +16,7 @@ class BaseConnector(ABC):
         pass
 
     @abstractmethod
-    def get_valuation_inputs(self, ticker: str) -> Dict[str, Any]:
+    def get_valuation_inputs(self, ticker: str, as_of_date: str = None) -> Dict[str, Any]:
         """
         Fetch and normalize data specifically for the Valuation Engine.
         Returns a dictionary containing keys like:

@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+import datetime
 import pandas as pd
 import yfinance as yf
 
@@ -36,7 +37,7 @@ class YahooFinanceConnector(BaseConnector):
             "risk_free_rate": risk_free_rate,
         }
 
-    def get_valuation_inputs(self, ticker: str) -> Dict[str, Any]:
+    def get_valuation_inputs(self, ticker: str, as_of_date: str = None) -> Dict[str, Any]:
         """
         Fetch and normalize data specifically for the Valuation Engine.
         Implements LTM calculations and fallback logic.
@@ -48,6 +49,39 @@ class YahooFinanceConnector(BaseConnector):
         q_bal = stock.quarterly_balance_sheet
         ann_inc = stock.financials
         info = stock.info
+
+
+        # --- Date Filtering ---
+        if as_of_date:
+            try:
+                dt_limit = datetime.datetime.strptime(as_of_date, "%Y-%m-%d").date()
+            except ValueError:
+                dt_limit = datetime.date.today()
+
+            def filter_cols(df):
+                if df.empty: return df
+                valid_cols = [c for c in df.columns if hasattr(c, 'date') and c.date() <= dt_limit]
+                if not valid_cols:
+                    # sometimes columns are strings if not properly parsed
+                    valid_cols = []
+                    for c in df.columns:
+                        try:
+                            if isinstance(c, str):
+                                c_date = datetime.datetime.strptime(c, "%Y-%m-%d").date()
+                                if c_date <= dt_limit: valid_cols.append(c)
+                            elif hasattr(c, 'date') and c.date() <= dt_limit:
+                                valid_cols.append(c)
+                        except: pass
+                return df[valid_cols]
+
+            q_inc = filter_cols(q_inc)
+            q_bal = filter_cols(q_bal)
+            ann_inc = filter_cols(ann_inc)
+
+            # Fallback to annual balance sheet if quarterly is empty after filtering
+            if q_bal.empty:
+                ann_bal = stock.balance_sheet
+                q_bal = filter_cols(ann_bal)
 
         data = {}
 

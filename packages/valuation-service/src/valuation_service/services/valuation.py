@@ -22,7 +22,7 @@ class ValuationService:
     def __init__(self, connector: BaseConnector):
         self.connector = connector
 
-    def calculate_valuation(self, ticker: str, assumptions: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def calculate_valuation(self, ticker: str, assumptions: Optional[Dict[str, Any]] = None, as_of_date: Optional[str] = None) -> Dict[str, Any]:
         """
         Orchestrates the valuation process.
 
@@ -32,7 +32,7 @@ class ValuationService:
         4. Return results as a dict (API-friendly).
         """
         # 1. Fetch normalized inputs from Connector
-        data = self.connector.get_valuation_inputs(ticker)
+        data = self.connector.get_valuation_inputs(ticker, as_of_date=as_of_date)
 
         # 2. Build GinzuInputs via canonical builder (single source of truth)
         inputs = build_ginzu_inputs(data, assumptions)

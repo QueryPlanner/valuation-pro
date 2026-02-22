@@ -12,6 +12,7 @@ class ValuationRequest(BaseModel):
 
     ticker: str
     source: str = "yahoo"
+    as_of_date: Optional[str] = None
     assumptions: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(
