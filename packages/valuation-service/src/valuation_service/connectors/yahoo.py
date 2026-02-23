@@ -1,7 +1,9 @@
 import datetime
+import urllib.parse
 from typing import Any, Dict
 
 import pandas as pd
+import requests
 import yfinance as yf
 
 from .base import BaseConnector, ConnectorFactory
@@ -248,6 +250,37 @@ class YahooFinanceConnector(BaseConnector):
         except Exception:
             pass
         return 0.04  # Fallback
+
+    def search_companies(self, query: str) -> list[Dict[str, Any]]:
+        """
+        Search Yahoo Finance for a company ticker by name or symbol.
+        """
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(query)}"
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            )
+        }
+        try:
+            response = requests.get(url, headers=headers, timeout=5)
+            response.raise_for_status()
+            data = response.json()
+            quotes = data.get("quotes", [])
+            results = []
+            for q in quotes:
+                results.append(
+                    {
+                        "symbol": q.get("symbol"),
+                        "shortname": q.get("shortname"),
+                        "longname": q.get("longname"),
+                        "exchange": q.get("exchange"),
+                        "quoteType": q.get("quoteType"),
+                    }
+                )
+            return results
+        except Exception:
+            return []
 
 
 # Register the connector

@@ -7,7 +7,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from valuation_service.api.schemas import ValuationRequest
+from valuation_service.api.schemas import CompanySearchResponse, ValuationRequest
 from valuation_service.connectors import ConnectorFactory
 from valuation_service.services.valuation import ValuationService
 from valuation_service.utils.json import sanitize_for_json
@@ -81,4 +81,27 @@ def calculate_valuation(request: ValuationRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Internal Error valuing {request.ticker}: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
+@router.get(
+    "/search",
+    summary="Search Companies",
+    description="Search for a company ticker by name or symbol.",
+    response_model=CompanySearchResponse,
+)
+def search_companies(
+    q: str = Query(..., description="The search query (ticker or company name)"),
+    source: str = Query("yahoo", description="Data source connector"),
+):
+    try:
+        connector = ConnectorFactory.get_connector(source)
+        service = ValuationService(connector)
+        results = service.search_companies(q)
+        return {"results": results}
+    except ValueError as e:
+        logger.warning(f"Bad Request for search '{q}': {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Internal Error searching for '{q}': {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")

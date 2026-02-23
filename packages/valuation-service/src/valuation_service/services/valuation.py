@@ -47,3 +47,9 @@ class ValuationService:
 
         # 4. Return results (Dict for API)
         return outputs.__dict__
+
+    def search_companies(self, query: str) -> list[Dict[str, Any]]:
+        """
+        Orchestrates the company search process by passing the query to the connector.
+        """
+        return self.connector.search_companies(query)

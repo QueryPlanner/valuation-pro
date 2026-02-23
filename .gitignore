@@ -232,3 +232,6 @@ conductor/
 
 # Pytest
 .pytest_cache/
+
+.gemini/
+gha-creds-*.json
