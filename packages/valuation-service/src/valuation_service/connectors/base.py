@@ -29,6 +29,15 @@ class BaseConnector(ABC):
         """
         pass
 
+    @abstractmethod
+    def search_companies(self, query: str) -> list[Dict[str, Any]]:
+        """
+        Search for a company ticker or name.
+        Returns a list of matching companies with basic metadata.
+        """
+        pass
+
+
 
 class ConnectorFactory:
     """Simple factory to manage data connectors (Singleton Pattern)."""

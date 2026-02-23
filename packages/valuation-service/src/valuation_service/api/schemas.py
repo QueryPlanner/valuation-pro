@@ -114,3 +114,13 @@ class ValuationRequest(BaseModel):
             }
         }
     )
+
+class CompanyItem(BaseModel):
+    symbol: Optional[str] = None
+    shortname: Optional[str] = None
+    longname: Optional[str] = None
+    exchange: Optional[str] = None
+    quoteType: Optional[str] = None
+
+class CompanySearchResponse(BaseModel):
+    results: List[CompanyItem]

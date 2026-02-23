@@ -23,6 +23,9 @@ class MockConnector(BaseConnector):
     def get_valuation_inputs(self, ticker: str) -> Dict[str, Any]:
         return {"mock": "valuation_inputs"}
 
+    def search_companies(self, query: str) -> list[Dict[str, Any]]:
+        return [{"symbol": query}]
+
 
 def test_connector_interface():
     """Ensure BaseConnector enforces implementation."""
@@ -64,6 +67,9 @@ class MockStatefulConnector(BaseConnector):
 
     def get_valuation_inputs(self, ticker: str) -> Dict[str, Any]:
         return {}
+
+    def search_companies(self, query: str) -> list[Dict[str, Any]]:
+        return []
 
 
 def test_connector_singleton_pattern():
