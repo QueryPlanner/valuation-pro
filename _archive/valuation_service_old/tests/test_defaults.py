@@ -6,7 +6,6 @@ Verifies that ``build_ginzu_inputs`` applies correct defaults when e.g.
 invested capital is negative, pretax income is negative, etc.
 """
 
-import pytest
 from valuation_engine.fcff_ginzu.engine import GinzuInputs
 from valuation_engine.fcff_ginzu.inputs_builder import build_ginzu_inputs
 

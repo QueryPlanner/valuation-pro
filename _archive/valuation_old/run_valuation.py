@@ -1,7 +1,5 @@
-import sys
 import os
-import json
-from dataclasses import asdict
+import sys
 
 # Add project root to sys.path to allow imports from sibling directories
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -10,7 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../sec-
 
 try:
     from sec_data_extractor import extract_data
-    from valuation_engine.fcff_ginzu.engine import GinzuInputs, compute_ginzu, FORECAST_YEARS
+    from valuation_engine.fcff_ginzu.engine import FORECAST_YEARS, GinzuInputs, compute_ginzu
 except ImportError as e:
     print(f"Error importing modules: {e}")
     print("Please ensure you are running this from the project root or the 'valuation' directory.")
@@ -43,7 +41,7 @@ def get_user_input_or_mock(prompt, key, cast_type=float):
 
 def run_valuation(cik_or_ticker):
     print(f"\n--- Starting Valuation for CIK: {cik_or_ticker} ---")
-    
+
     # 1. Fetch REAL Data
     print("\n[1/3] Fetching SEC Data...")
     try:
@@ -58,13 +56,13 @@ def run_valuation(cik_or_ticker):
 
     # 2. Prepare Inputs (Merge Real + Mock)
     print("\n[2/3] Preparing Valuation Inputs...")
-    
+
     # Calculate some derived mocks if possible
     # e.g. Current Margin
     base_rev = sec_data.get('revenues_base', 0)
     base_ebit = sec_data.get('ebit_reported_base', 0)
     current_margin = base_ebit / base_rev if base_rev else 0.10
-    
+
     # Sales to Capital from Data
     sales_to_cap_actual = sec_data.get('sales_to_capital', 0.0)
     # Heuristic: If actual is reasonable (>0.1), use it. Else mock 2.0.
@@ -82,12 +80,12 @@ def run_valuation(cik_or_ticker):
     print(f"  [REAL] Effective Tax Rate      : {sec_data.get('effective_tax_rate', 0):.1%}")
 
     # Handling R&D and Leases (Simplified for Prototype)
-    # We will treat lease liability as debt but ignore the complex EBIT adjustments for now 
+    # We will treat lease liability as debt but ignore the complex EBIT adjustments for now
     # unless we want to mock the interest portion.
     lease_debt = sec_data.get('operating_leases_liability', 0)
     # Mocking lease interest adjustment as 4% of debt
-    lease_ebit_adj = lease_debt * 0.04 
-    
+    lease_ebit_adj = lease_debt * 0.04
+
     # Construct Inputs Object
     inputs = GinzuInputs(
         # Real Data
@@ -109,7 +107,7 @@ def run_valuation(cik_or_ticker):
         lease_ebit_adjustment=lease_ebit_adj if sec_data.get('operating_leases_flag') == 'yes' else 0.0,
 
         capitalize_rnd=False, # DISABLED for now as we lack historical data for capitalization
-        
+
         # Mock / Assumptions
         stock_price=get_user_input_or_mock("Stock Price", "stock_price"),
         rev_growth_y1=get_user_input_or_mock("Revenue Growth (Y1)", "rev_growth_y1"),
@@ -122,11 +120,11 @@ def run_valuation(cik_or_ticker):
         riskfree_rate_now=get_user_input_or_mock("Riskfree Rate", "riskfree_rate_now"),
         mature_market_erp=get_user_input_or_mock("Equity Risk Premium", "mature_market_erp"),
         wacc_initial=get_user_input_or_mock("Initial WACC", "wacc_initial"),
-        
+
         # Stable phase overrides
         override_perpetual_growth=True,
         perpetual_growth_rate=get_user_input_or_mock("Perpetual Growth", "perpetual_growth_rate"),
-        
+
         # Defaults
         has_employee_options=False,
         override_stable_wacc=False,
@@ -167,5 +165,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python run_valuation.py <CIK>")
         sys.exit(1)
-    
+
     run_valuation(sys.argv[1])

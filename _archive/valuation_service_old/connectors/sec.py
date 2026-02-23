@@ -1,5 +1,7 @@
-from typing import Dict, Any
+from typing import Any, Dict
+
 from .base import BaseConnector, ConnectorFactory
+
 
 class SECConnector(BaseConnector):
     """Placeholder for SEC EDGAR connector."""

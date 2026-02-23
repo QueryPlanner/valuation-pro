@@ -25,7 +25,6 @@ from dataclasses import dataclass
 from math import erf, exp, log, sqrt
 from typing import Iterable, List, Optional, Tuple
 
-
 FORECAST_YEARS: int = 10
 STABLE_TRANSITION_YEARS: int = 5
 
@@ -90,7 +89,7 @@ def compute_rnd_capitalization_adjustments(inputs: RnDCapitalizationInputs) -> T
         # Asset: unamortized portion. For k=n, (n-n)/n = 0.
         unamortized_fraction = (n_float - float(k)) / n_float
         rnd_asset += float(expense) * unamortized_fraction
-        
+
         # Amortization: straight line 1/n
         amortization_this_year += float(expense) / n_float
 

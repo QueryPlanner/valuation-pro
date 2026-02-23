@@ -23,6 +23,9 @@ def mock_yfinance_ticker():
 
 def test_yahoo_financials(mock_yfinance_ticker):
     instance = mock_yfinance_ticker.return_value
+    instance.income_stmt.empty = False
+    instance.balance_sheet.empty = False
+    instance.cashflow.empty = False
     instance.income_stmt.to_dict.return_value = {"2023": {"Revenue": 100}}
     instance.balance_sheet.to_dict.return_value = {"2023": {"Assets": 500}}
     instance.cashflow.to_dict.return_value = {"2023": {"OperatingCashFlow": 50}}

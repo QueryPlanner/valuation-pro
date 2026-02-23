@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Type
+from typing import Any, Dict, Type
+
 
 class BaseConnector(ABC):
     """Abstract base class for data connectors."""
-    
+
     @abstractmethod
     def get_financials(self, ticker: str) -> Dict[str, Any]:
         """Fetch financial statements (Income, Balance Sheet, Cash Flow)."""
@@ -42,12 +43,12 @@ class ConnectorFactory:
         # Check cache first
         if name in cls._instances:
             return cls._instances[name]
-            
+
         # Create new instance if registered
         connector_cls = cls._connector_classes.get(name)
         if not connector_cls:
             raise ValueError(f"Connector '{name}' not found.")
-        
+
         instance = connector_cls()
         cls._instances[name] = instance
         return instance

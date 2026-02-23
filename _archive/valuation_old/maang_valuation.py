@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,9 +17,7 @@ sys.path.append(str(REPO_ROOT))
 sys.path.append(str(SEC_INTEGRATION_DIR))
 
 import sec_data_extractor as sec_extractor  # type: ignore  # local file module
-
 from valuation_engine.fcff_ginzu.engine import GinzuInputs, compute_ginzu
-
 
 SEC_DUCKDB_PATH = str(REPO_ROOT / "sec_fsn.duckdb")
 
@@ -139,10 +136,10 @@ def main():
     print(f"SEC DuckDB: {SEC_DUCKDB_PATH}")
 
     _configure_sec_extractor_db_path(SEC_DUCKDB_PATH)
-    
+
     for ticker, cik in MAANG_CIKS.items():
         print(f"\nProcessing {ticker} (CIK: {cik})...")
-        
+
         market = fetch_market_snapshot(ticker)
         if market is None:
             print("Skipping - Yahoo market data failed.")
@@ -193,7 +190,7 @@ def main():
             f"WACC (fixed initial): {WACC_INITIAL:.1%}",
             f"Terminal growth (override): {PERPETUAL_GROWTH_RATE:.1%}",
         ]
-        
+
         ginzu_inputs = GinzuInputs(
             revenues_base=revenues_base,
             ebit_reported_base=ebit_reported_base,
@@ -211,8 +208,8 @@ def main():
             lease_debt=0.0,
             lease_ebit_adjustment=0.0,
             capitalize_rnd=False,
-            
-            rev_growth_y1=0.12, 
+
+            rev_growth_y1=0.12,
             rev_cagr_y2_5=0.08,
             margin_y1=base_margin,
             margin_target=base_margin,  # default: sustain current margin
@@ -225,25 +222,25 @@ def main():
             override_perpetual_growth=True,
             perpetual_growth_rate=PERPETUAL_GROWTH_RATE,
         )
-        
+
         # Compute
         try:
             res = compute_ginzu(ginzu_inputs)
-            
+
             print("\n  --- Valuation Results ---")
             print(f"  Current Price: ${market.stock_price:.2f}")
             print(f"  Estimated Value: ${res.estimated_value_per_share:.2f}")
             if market.stock_price > 0:
                 upside = (res.estimated_value_per_share / market.stock_price) - 1
                 print(f"  Upside: {upside:.1%}")
-            
+
             print("\n  --- Key Assumptions ---")
             for a in assumptions:
                 print(f"  - {a}")
             print(f"  - Sales/Capital used: {sales_to_capital:.2f}")
             print(f"  - Effective tax rate (base): {tax_rate_effective:.1%}")
             print(f"  - Marginal tax rate (terminal): {tax_rate_marginal:.1%}")
-            
+
         except Exception as e:
             print(f"  Valuation Error: {e}")
 

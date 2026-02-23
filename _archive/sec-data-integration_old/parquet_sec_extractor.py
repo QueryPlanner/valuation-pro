@@ -1,11 +1,10 @@
-import subprocess
+import csv
+import datetime
+import io
 import json
 import os
+import subprocess
 import sys
-import csv
-import io
-import datetime
-from pathlib import Path
 
 # --- Configuration ---
 DATA_ROOT = os.environ.get("SEC_DATA_ROOT", "/Volumes/lord-ssd/data/sec-data")
@@ -15,14 +14,14 @@ NUM_PATTERN = os.path.join(DATA_ROOT, "*", "num.parquet")
 # --- Constants (Copied from sec_data_extractor.py) ---
 TAGS = {
     "revenues": [
-        "RevenueFromContractWithCustomerExcludingAssessedTax", 
-        "Revenues", 
-        "SalesRevenueNet", 
+        "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "Revenues",
+        "SalesRevenueNet",
         "SalesRevenueGoodsNet",
         "TotalRevenuesAndOtherIncome"
     ],
     "ebit": [
-        "OperatingIncomeLoss", 
+        "OperatingIncomeLoss",
         "OperatingProfitLoss",
         "IncomeLossFromContinuingOperationsBeforeInterestAndIncomeTaxes",
         "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
@@ -34,14 +33,14 @@ TAGS = {
     ],
     "minority_interest": ["StockholdersEquityAttributableToNoncontrollingInterest", "MinorityInterest"],
     "debt_total": [
-        "LongTermDebtAndCapitalLeaseObligations", 
+        "LongTermDebtAndCapitalLeaseObligations",
         "DebtAndCapitalLeaseObligations"
     ],
     "debt_noncurrent": ["LongTermDebtNoncurrent"],
     "debt_current": [
-        "ShortTermBorrowings", 
-        "LongTermDebtCurrent", 
-        "DebtCurrent", 
+        "ShortTermBorrowings",
+        "LongTermDebtCurrent",
+        "DebtCurrent",
         "CommercialPaper"
     ],
     "cash": ["CashAndCashEquivalentsAtCarryingValue"],
@@ -93,7 +92,7 @@ def get_filings(cik):
     # Note: CAST(cik as VARCHAR) or just comparing as int depending on parquet schema.
     # Usually cik in sub is integer or string. Let's assume integer or handle string.
     # We cast to string in SQL to be safe if input is string.
-    
+
     sql = f"""
     SELECT adsh, form, period, fy, fp, countryba
     FROM read_parquet('{SUB_PATTERN}')
@@ -104,20 +103,20 @@ def get_filings(cik):
     csv_out = run_query_csv(sql)
     reader = csv.DictReader(io.StringIO(csv_out))
     rows = list(reader)
-    
+
     if not rows:
         return None, None, 'US'
 
     latest_filing = rows[0]
     latest_10k = None
-    
+
     for row in rows:
         if row['form'] == '10-K':
             latest_10k = row
             break
         elif row['form'] == '10-K/A' and not latest_10k:
             latest_10k = row
-            
+
     return latest_10k, latest_filing, latest_filing.get('countryba', 'US')
 
 def fetch_facts(adsh, tags_list):
@@ -125,13 +124,13 @@ def fetch_facts(adsh, tags_list):
     Fetches numeric facts for the given ADSH and Tags from parquet files.
     """
     if not adsh: return []
-    
+
     all_tags = set()
     for t_list in tags_list:
         all_tags.update(t_list)
-        
+
     tags_str = "'" + "','".join(all_tags) + "'"
-    
+
     # We optimize by filtering on ADSH. DuckDB pushdown is usually good.
     sql = f"""
     SELECT n.tag, CAST(n.value AS DOUBLE) as value, n.uom, n.qtrs, n.ddate, n.dimh
@@ -140,7 +139,7 @@ def fetch_facts(adsh, tags_list):
     AND n.tag IN ({tags_str})
     ORDER BY CAST(n.value AS DOUBLE) DESC; 
     """
-    
+
     csv_out = run_query_csv(sql)
     reader = csv.DictReader(io.StringIO(csv_out))
     return list(reader)
@@ -157,7 +156,7 @@ def get_fact_value(facts, tag_candidates, qtrs, ddate=None, segment_hash='0x0000
                     if ddate and str(f['ddate']) != str(ddate).replace('-', ''):
                         continue
                     return float(f['value'])
-        
+
         # Second pass: Sum segments
         segmented_values = []
         for f in facts:
@@ -167,7 +166,7 @@ def get_fact_value(facts, tag_candidates, qtrs, ddate=None, segment_hash='0x0000
                 f_dimh = f.get('dimh', '0x00000000') or '0x00000000'
                 if f_dimh != segment_hash:
                     segmented_values.append(float(f['value']))
-        
+
         if segmented_values:
             if len(segmented_values) <= 3:
                 return sum(segmented_values)
@@ -177,10 +176,10 @@ def get_fact_value(facts, tag_candidates, qtrs, ddate=None, segment_hash='0x0000
 
 def calculate_ltm(concept_tags, latest_10k, latest_filing, facts_10k, facts_latest):
     if not latest_10k: return 0.0
-    
+
     fy_date = latest_10k['period']
     val_fy = get_fact_value(facts_10k, concept_tags, 4, fy_date)
-    
+
     if val_fy is None:
         return 0.0
 
@@ -192,12 +191,12 @@ def calculate_ltm(concept_tags, latest_10k, latest_filing, facts_10k, facts_late
     if fp == 'Q1': ytd_qtrs = 1
     elif fp in ['Q2', 'H1']: ytd_qtrs = 2
     elif fp in ['Q3', 'M9']: ytd_qtrs = 3
-    else: return val_fy 
+    else: return val_fy
 
     curr_date = latest_filing['period']
     curr_dt_obj = parse_date(curr_date)
     if not curr_dt_obj: return val_fy
-    
+
     prev_dt_obj = datetime.date(curr_dt_obj.year - 1, curr_dt_obj.month, curr_dt_obj.day)
     prev_date = prev_dt_obj.strftime("%Y%m%d")
 
@@ -206,33 +205,33 @@ def calculate_ltm(concept_tags, latest_10k, latest_filing, facts_10k, facts_late
 
     if val_curr_ytd is not None and val_prev_ytd is not None:
         return val_fy + val_curr_ytd - val_prev_ytd
-    
+
     return val_fy
 
 def extract_data(cik):
     latest_10k, latest_filing, country = get_filings(cik)
-    
+
     if not latest_10k:
         return {"error": "No 10-K found"}
 
     all_tags = list(TAGS.values())
     facts_10k = fetch_facts(latest_10k['adsh'], all_tags)
-    
+
     if latest_filing and latest_filing['adsh'] != latest_10k['adsh']:
         facts_latest = fetch_facts(latest_filing['adsh'], all_tags)
     else:
         facts_latest = facts_10k
 
     data = {}
-    
+
     # --- Flows (LTM) ---
     data['revenues_base'] = calculate_ltm(TAGS['revenues'], latest_10k, latest_filing, facts_10k, facts_latest)
     data['ebit_reported_base'] = calculate_ltm(TAGS['ebit'], latest_10k, latest_filing, facts_10k, facts_latest)
     data['rnd_expense'] = calculate_ltm(TAGS['rnd'], latest_10k, latest_filing, facts_10k, facts_latest)
-    
+
     tax_exp = calculate_ltm(TAGS['income_tax_expense'], latest_10k, latest_filing, facts_10k, facts_latest)
     pre_tax_inc = calculate_ltm(TAGS['income_before_tax'], latest_10k, latest_filing, facts_10k, facts_latest)
-    
+
     if pre_tax_inc != 0 and tax_exp is not None:
         data['effective_tax_rate'] = tax_exp / pre_tax_inc
     else:
@@ -240,7 +239,7 @@ def extract_data(cik):
 
     # --- Stocks (Point in Time) ---
     target_date = latest_filing['period'] if latest_filing else latest_10k['period']
-    
+
     equity = get_fact_value(facts_latest, TAGS['book_equity'], 0, target_date)
     if equity is None:
         se = get_fact_value(facts_latest, ["StockholdersEquity"], 0, target_date) or 0
@@ -283,7 +282,7 @@ def extract_data(cik):
     inv_cap = data['book_equity'] + data['book_debt'] - data['cash']
     if data['operating_leases_flag'] == 'yes':
         inv_cap += data['operating_leases_liability']
-    
+
     data['invested_capital'] = inv_cap
 
     if inv_cap > 0 and data['revenues_base'] > 0:
@@ -295,7 +294,7 @@ def extract_data(cik):
         'cik': cik,
         'latest_filing_date': target_date,
         'latest_filing_form': latest_filing['form'] if latest_filing else '10-K',
-        'currency': 'USD' 
+        'currency': 'USD'
     }
 
     return data
@@ -304,7 +303,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python parquet_sec_extractor.py <CIK>")
         sys.exit(1)
-        
+
     cik = sys.argv[1]
     try:
         result = extract_data(cik)

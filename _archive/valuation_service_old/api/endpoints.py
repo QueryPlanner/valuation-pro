@@ -1,9 +1,11 @@
+import logging
+from typing import Any, Dict, Optional
+
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
-from typing import Dict, Any, Optional
-import logging
-from valuation_service.connectors import ConnectorFactory
 from valuation_service.service import ValuationService
+
+from valuation_service.connectors import ConnectorFactory
 from valuation_service.utils import sanitize_for_json
 
 logger = logging.getLogger(__name__)
@@ -74,7 +76,7 @@ def calculate_valuation(request: ValuationRequest):
     try:
         connector = ConnectorFactory.get_connector(request.source)
         service = ValuationService(connector)
-        
+
         result = service.calculate_valuation(request.ticker, request.assumptions)
         return sanitize_for_json(result)
     except ValueError as e:

@@ -1,11 +1,10 @@
-import subprocess
+import csv
+import datetime
+import io
 import json
 import os
+import subprocess
 import sys
-import csv
-import io
-import datetime
-from datetime import timedelta
 from pathlib import Path
 
 _DEFAULT_EXTERNAL_DB_PATH = "/Volumes/lord-ssd/data/sec-data/sec-notes.duckdb"
@@ -25,14 +24,14 @@ DB_PATH = os.environ.get("SEC_DUCKDB_PATH") or os.environ.get("SEC_DB_PATH") or 
 # Mapping of concepts to list of possible XBRL tags (priority order)
 TAGS = {
     "revenues": [
-        "RevenueFromContractWithCustomerExcludingAssessedTax", 
-        "Revenues", 
-        "SalesRevenueNet", 
+        "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "Revenues",
+        "SalesRevenueNet",
         "SalesRevenueGoodsNet",
         "TotalRevenuesAndOtherIncome"
     ],
     "ebit": [
-        "OperatingIncomeLoss", 
+        "OperatingIncomeLoss",
         "OperatingProfitLoss",
         "IncomeLossFromContinuingOperationsBeforeInterestAndIncomeTaxes",
         "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest" # EBT Fallback
@@ -50,14 +49,14 @@ TAGS = {
     "debt_current": [
         "ShortTermBorrowings",
         "NotesAndLoansPayable",
-        "LongTermDebtCurrent", 
-        "DebtCurrent", 
+        "LongTermDebtCurrent",
+        "DebtCurrent",
         "CommercialPaper"
     ],
     "cash": ["CashAndCashEquivalentsAtCarryingValue"],
     "marketable_securities": [
         "ShortTermInvestments",
-        "MarketableSecuritiesCurrent", 
+        "MarketableSecuritiesCurrent",
         "MarketableSecurities"
     ],
     "leases_noncurrent": ["OperatingLeaseLiabilityNoncurrent"],
@@ -113,7 +112,7 @@ def get_filings(cik, as_of_date=None):
         # as_of_date is expected as YYYY-MM-DD or YYYYMMDD
         as_of_date_str = str(as_of_date)
         clean_date = None
-        
+
         # Try YYYY-MM-DD
         try:
              dt = datetime.datetime.strptime(as_of_date_str, "%Y-%m-%d")
@@ -125,7 +124,7 @@ def get_filings(cik, as_of_date=None):
                  clean_date = dt.strftime("%Y%m%d")
              except ValueError:
                  raise ValueError("Invalid date format. Expected YYYY-MM-DD or YYYYMMDD.")
-                 
+
         date_filter = f"AND filed <= {clean_date}"
 
     sql = f"""
@@ -139,13 +138,13 @@ def get_filings(cik, as_of_date=None):
     csv_out = run_query_csv(sql)
     reader = csv.DictReader(io.StringIO(csv_out))
     rows = list(reader)
-    
+
     if not rows:
         return None, None, 'US'
 
     latest_filing = rows[0]
     latest_10k = None
-    
+
     # Heuristic: Prefer 10-K over 10-K/A for the same period
     for row in rows:
         if row['form'] == '10-K':
@@ -153,7 +152,7 @@ def get_filings(cik, as_of_date=None):
             break
         elif row['form'] == '10-K/A' and not latest_10k:
             latest_10k = row
-            
+
     return latest_10k, latest_filing, latest_filing.get('countryba', 'US')
 
 def fetch_facts(adsh, tags_list):
@@ -161,14 +160,14 @@ def fetch_facts(adsh, tags_list):
     Fetches all numeric facts for the given ADSH and Tags.
     """
     if not adsh: return []
-    
+
     # Flatten tags list
     all_tags = set()
     for t_list in tags_list:
         all_tags.update(t_list)
-        
+
     tags_str = "'" + "','".join(all_tags) + "'"
-    
+
     sql = f"""
     SELECT n.tag, CAST(n.value AS DOUBLE) as value, n.uom, n.qtrs, n.ddate, n.dimh
     FROM read_parquet('{NUM_PATTERN}') n
@@ -176,7 +175,7 @@ def fetch_facts(adsh, tags_list):
     AND n.tag IN ({tags_str})
     ORDER BY CAST(n.value AS DOUBLE) DESC; 
     """
-    
+
     csv_out = run_query_csv(sql)
     reader = csv.DictReader(io.StringIO(csv_out))
     return list(reader)
@@ -195,10 +194,10 @@ def get_fact_value(facts, tag_candidates, qtrs, ddate=None, segment_hash='0x0000
                     if ddate and f['ddate'] != str(ddate).replace('-', ''):
                         continue
                     return float(f['value'])
-        
+
         # Second pass: If no consolidated value, look for segmented values to sum
         # Group by dimh to avoid double-counting duplicate rows for the same segment
-        segment_map = {} 
+        segment_map = {}
         for f in facts:
             if f['tag'] == tag and int(f['qtrs']) == qtrs:
                 if ddate and str(f['ddate']) != str(ddate).replace('-', ''):
@@ -210,9 +209,9 @@ def get_fact_value(facts, tag_candidates, qtrs, ddate=None, segment_hash='0x0000
                         segment_map[f['dimh']] = max(segment_map[f['dimh']], current_val)
                     else:
                         segment_map[f['dimh']] = current_val
-        
+
         segmented_values = list(segment_map.values())
-        
+
         if segmented_values:
             # Heuristic: Sum if few segments (likely Class A + Class B), otherwise take MAX (if many, likely a time series or mess)
             if len(segmented_values) <= 3:
@@ -229,7 +228,7 @@ def calculate_ltm(concept_tags, latest_10k, latest_filing, facts_10k, facts_late
     """
     fy_date = latest_10k['period']
     val_fy = get_fact_value(facts_10k, concept_tags, 4, fy_date)
-    
+
     if val_fy is None:
         return 0.0
 
@@ -241,12 +240,12 @@ def calculate_ltm(concept_tags, latest_10k, latest_filing, facts_10k, facts_late
     if fp == 'Q1': ytd_qtrs = 1
     elif fp in ['Q2', 'H1']: ytd_qtrs = 2
     elif fp in ['Q3', 'M9']: ytd_qtrs = 3
-    else: return val_fy 
+    else: return val_fy
 
     curr_date = latest_filing['period']
     curr_dt_obj = parse_date(curr_date)
     if not curr_dt_obj: return val_fy
-    
+
     prev_dt_obj = datetime.date(curr_dt_obj.year - 1, curr_dt_obj.month, curr_dt_obj.day)
     prev_date = prev_dt_obj.strftime("%Y%m%d")
 
@@ -255,34 +254,34 @@ def calculate_ltm(concept_tags, latest_10k, latest_filing, facts_10k, facts_late
 
     if val_curr_ytd is not None and val_prev_ytd is not None:
         return val_fy + val_curr_ytd - val_prev_ytd
-    
+
     return val_fy
 
 def extract_data(cik, as_of_date=None):
     latest_10k, latest_filing, country = get_filings(cik, as_of_date=as_of_date)
-    
+
     if not latest_10k:
         return {"error": "No 10-K found"}
 
     all_tags = list(TAGS.values())
     facts_10k = fetch_facts(latest_10k['adsh'], all_tags)
-    
+
     if latest_filing['adsh'] != latest_10k['adsh']:
         facts_latest = fetch_facts(latest_filing['adsh'], all_tags)
     else:
         facts_latest = facts_10k
 
     data = {}
-    
+
     # --- Flows (LTM) ---
     data['revenues_base'] = calculate_ltm(TAGS['revenues'], latest_10k, latest_filing, facts_10k, facts_latest)
     data['ebit_reported_base'] = calculate_ltm(TAGS['ebit'], latest_10k, latest_filing, facts_10k, facts_latest)
     data['rnd_expense'] = calculate_ltm(TAGS['rnd'], latest_10k, latest_filing, facts_10k, facts_latest)
     data['interest_expense'] = calculate_ltm(TAGS['interest_expense'], latest_10k, latest_filing, facts_10k, facts_latest)
-    
+
     tax_exp = calculate_ltm(TAGS['income_tax_expense'], latest_10k, latest_filing, facts_10k, facts_latest)
     pre_tax_inc = calculate_ltm(TAGS['income_before_tax'], latest_10k, latest_filing, facts_10k, facts_latest)
-    
+
     if pre_tax_inc != 0:
         data['effective_tax_rate'] = tax_exp / pre_tax_inc
     else:
@@ -290,7 +289,7 @@ def extract_data(cik, as_of_date=None):
 
     # --- Stocks (Point in Time) ---
     target_date = latest_filing['period']
-    
+
     equity = get_fact_value(facts_latest, TAGS['book_equity'], 0, target_date)
     if equity is None:
         se = get_fact_value(facts_latest, ["StockholdersEquity"], 0, target_date) or 0
@@ -303,15 +302,15 @@ def extract_data(cik, as_of_date=None):
     total_debt = get_fact_value(facts_latest, TAGS['debt_total'], 0, target_date)
     if total_debt is None:
         d_long = get_fact_value(facts_latest, TAGS['debt_noncurrent'], 0, target_date) or 0
-        
+
         # Current Debt Calculation:
         # Instead of picking just one tag from the list, we need to sum distinct components:
         # 1. Short Term Borrowings (or its components like Commercial Paper / Notes)
         # 2. Current Portion of Long Term Debt
-        
+
         # Try aggregate "DebtCurrent" first
         d_short_agg = get_fact_value(facts_latest, ["DebtCurrent"], 0, target_date)
-        
+
         if d_short_agg is not None:
             d_short = d_short_agg
         else:
@@ -325,12 +324,12 @@ def extract_data(cik, as_of_date=None):
                 cp = get_fact_value(facts_latest, ["CommercialPaper"], 0, target_date) or 0
                 notes = get_fact_value(facts_latest, ["NotesAndLoansPayable"], 0, target_date) or 0
                 d_short_borrowing = cp + notes
-            
+
             # Component 2: Current Portion of LTD
             ltdc = get_fact_value(facts_latest, ["LongTermDebtCurrent", "LongTermDebtAndCapitalLeaseObligationsCurrent"], 0, target_date) or 0
-            
+
             d_short = d_short_borrowing + ltdc
-            
+
         total_debt = d_long + d_short
     data['book_debt'] = total_debt or 0.0
 
@@ -344,11 +343,11 @@ def extract_data(cik, as_of_date=None):
 
     # Cross Holdings
     # We sum up the best available value for each major category in TAGS['investments_noncurrent']
-    # But since they might overlap or be mutually exclusive based on taxonomy choice, we should follow the priority list 
-    # or just try to grab the specific ones we know are additive. 
+    # But since they might overlap or be mutually exclusive based on taxonomy choice, we should follow the priority list
+    # or just try to grab the specific ones we know are additive.
     # The previous manual logic missed 'MarketableSecuritiesNoncurrent'.
     # Let's try to fetch using the specific keys in our list manually to be safe, but include all of them.
-    
+
     # "AvailableForSaleSecuritiesNoncurrent"
     i_avail = get_fact_value(facts_latest, ["AvailableForSaleSecuritiesNoncurrent"], 0, target_date) or 0
     # "MarketableSecuritiesNoncurrent" - often used instead of AvailableForSale
@@ -357,59 +356,59 @@ def extract_data(cik, as_of_date=None):
     i_equity = get_fact_value(facts_latest, ["EquityMethodInvestments"], 0, target_date) or 0
     # "OtherLongTermInvestments"
     i_other = get_fact_value(facts_latest, ["OtherLongTermInvestments"], 0, target_date) or 0
-    
+
     # "EquitySecuritiesFVNINoncurrent" - Fair Value Net Income (often strategic stakes)
     i_eq_fvni = get_fact_value(facts_latest, ["EquitySecuritiesFVNINoncurrent"], 0, target_date) or 0
     # "EquitySecuritiesWithoutReadilyDeterminableFairValueAmount" - Private stakes
     i_eq_no_fair = get_fact_value(facts_latest, ["EquitySecuritiesWithoutReadilyDeterminableFairValueAmount"], 0, target_date) or 0
 
-    # Basic logic: i_avail and i_mkt_nc are likely mutually exclusive or one is a parent of another. 
+    # Basic logic: i_avail and i_mkt_nc are likely mutually exclusive or one is a parent of another.
     # If both exist and are different, it's risky. But usually companies use one or the other.
-    # Safe bet: sum them all but watch out for duplicates? 
-    # Actually, let's just use the robust `get_fact_value` with the whole list if we want the "best one", 
+    # Safe bet: sum them all but watch out for duplicates?
+    # Actually, let's just use the robust `get_fact_value` with the whole list if we want the "best one",
     # BUT cross holdings is often a sum of multiple line items (e.g. Equity Method + Available for Sale).
     # So summing the distinct types is correct.
-    
-    # If a company has BOTH MarketableSecuritiesNoncurrent AND AvailableForSaleSecuritiesNoncurrent, 
-    # we might double count if we just sum. 
+
+    # If a company has BOTH MarketableSecuritiesNoncurrent AND AvailableForSaleSecuritiesNoncurrent,
+    # we might double count if we just sum.
     # However, usually MarketableSecuritiesNoncurrent is the higher level concept or an alternative.
     # Let's take the MAX of (MarketableSecuritiesNoncurrent, AvailableForSaleSecuritiesNoncurrent) to be safe against double counting,
-    # OR sum them if they seem distinct. 
+    # OR sum them if they seem distinct.
     # Given the previous bug was missing 77B which was purely MarketableSecuritiesNoncurrent, let's include it.
-    
+
     # Refined Strategy: Sum (EquityMethod) + (Other) + MAX(AvailableForSale, MarketableSecuritiesNoncurrent)
-    # This assumes Marketable and AvailableForSale are likely describing the same pot of money if both appear, 
-    # or one is a subset. 
+    # This assumes Marketable and AvailableForSale are likely describing the same pot of money if both appear,
+    # or one is a subset.
     # NVDA Case: EquitySecuritiesFVNINoncurrent is distinct.
-    
+
     inv_securities = max(i_avail, i_mkt_nc)
-    
+
     # For NVDA, i_eq_fvni and i_eq_no_fair might be duplicates if one is a detail of the other.
     # Checking NVDA: EquitySecuritiesWithoutReadilyDeterminable... has same value as EquitySecuritiesFVNINoncurrent?
-    # In my finding_missing_tag, they were both 8.187B. 
+    # In my finding_missing_tag, they were both 8.187B.
     # It is likely they are alternative tags for the same concept or one is a roll-up.
     # Let's take MAX of them.
     inv_strategic = max(i_eq_fvni, i_eq_no_fair)
-    
+
     data['cross_holdings'] = i_equity + inv_securities + i_other + inv_strategic
 
     # Try EntityCommonStockSharesOutstanding specifically without date constraint first
     # This is usually the most accurate "cover page" count
     shares = get_fact_value(facts_latest, ["EntityCommonStockSharesOutstanding"], 0, ddate=None)
-    
+
     if not shares:
         # Fallback to standard logic with strict date
         shares = get_fact_value(facts_latest, TAGS['shares'], 0, target_date)
-    
+
     if not shares:
         # Retry all share tags without date constraint
         shares = get_fact_value(facts_latest, TAGS['shares'], 0, ddate=None)
-        
+
     if not shares and latest_10k:
         shares = get_fact_value(facts_10k, TAGS['shares'], 0, latest_10k['period'])
         if not shares:
             shares = get_fact_value(facts_10k, TAGS['shares'], 0, ddate=None)
-            
+
     data['shares_outstanding'] = shares or 0.0
 
     data['marginal_tax_rate'] = TAX_RATES.get(country, 0.21)
@@ -422,7 +421,7 @@ def extract_data(cik, as_of_date=None):
     inv_cap = data['book_equity'] + data['book_debt'] - data['cash']
     if data['operating_leases_flag'] == 'yes':
         inv_cap += data['operating_leases_liability']
-    
+
     data['invested_capital'] = inv_cap
 
     if inv_cap > 0 and data['revenues_base'] > 0:
@@ -434,7 +433,7 @@ def extract_data(cik, as_of_date=None):
         'cik': cik,
         'latest_filing_date': latest_filing['period'],
         'latest_filing_form': latest_filing['form'],
-        'currency': 'USD' 
+        'currency': 'USD'
     }
 
     return data
@@ -443,7 +442,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python sec_data_extractor.py <CIK> [as_of_date]")
         sys.exit(1)
-        
+
     cik = sys.argv[1]
     as_of_date = sys.argv[2] if len(sys.argv) > 2 else None
     try:

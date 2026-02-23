@@ -13,15 +13,14 @@ This script remains useful for:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
 import argparse
 import csv
 import json
 import sys
-import zipfile
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+import zipfile
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     # Prefer normal imports (works when run as `python -m archive.fcff_simple_ginzu`).

@@ -1,7 +1,5 @@
-import sys
 import os
-import json
-from dataclasses import asdict
+import sys
 
 # Add project root to sys.path to allow imports from sibling directories
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -11,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../sec-
 try:
     # Import from the NEW parquet extractor
     from parquet_sec_extractor import extract_data
-    from valuation_engine.fcff_ginzu.engine import GinzuInputs, compute_ginzu, FORECAST_YEARS
+    from valuation_engine.fcff_ginzu.engine import FORECAST_YEARS, GinzuInputs, compute_ginzu
 except ImportError as e:
     print(f"Error importing modules: {e}")
     sys.exit(1)
@@ -39,7 +37,7 @@ def get_user_input_or_mock(prompt, key, cast_type=float):
 
 def run_valuation(cik_or_ticker):
     print(f"\n--- Starting Parquet-Based Valuation for CIK: {cik_or_ticker} ---")
-    
+
     # 1. Fetch REAL Data (from Parquet)
     print("\n[1/3] Fetching SEC Data (Local Parquet)...")
     try:
@@ -56,11 +54,11 @@ def run_valuation(cik_or_ticker):
 
     # 2. Prepare Inputs (Merge Real + Mock)
     print("\n[2/3] Preparing Valuation Inputs...")
-    
+
     base_rev = sec_data.get('revenues_base', 0)
     base_ebit = sec_data.get('ebit_reported_base', 0)
     current_margin = base_ebit / base_rev if base_rev else 0.10
-    
+
     sales_to_cap_actual = sec_data.get('sales_to_capital', 0.0)
     sales_to_cap_default = sales_to_cap_actual if sales_to_cap_actual > 0.1 else 2.0
 
@@ -73,8 +71,8 @@ def run_valuation(cik_or_ticker):
     print(f"  [REAL] Sales/Capital (Actual)  : {sales_to_cap_actual:.2f}")
 
     lease_debt = sec_data.get('operating_leases_liability', 0)
-    lease_ebit_adj = lease_debt * 0.04 
-    
+    lease_ebit_adj = lease_debt * 0.04
+
     inputs = GinzuInputs(
         revenues_base=float(base_rev),
         ebit_reported_base=float(base_ebit),
@@ -91,12 +89,12 @@ def run_valuation(cik_or_ticker):
         lease_debt=float(lease_debt),
         lease_ebit_adjustment=lease_ebit_adj if sec_data.get('operating_leases_flag') == 'yes' else 0.0,
 
-        capitalize_rnd=False, 
-        
+        capitalize_rnd=False,
+
         stock_price=get_user_input_or_mock("Stock Price", "stock_price"),
         rev_growth_y1=get_user_input_or_mock("Revenue Growth (Y1)", "rev_growth_y1"),
         rev_cagr_y2_5=get_user_input_or_mock("Revenue CAGR (Y2-5)", "rev_cagr_y2_5"),
-        margin_y1=current_margin, 
+        margin_y1=current_margin,
         margin_target=get_user_input_or_mock("Target Margin", "margin_target"),
         margin_convergence_year=int(get_user_input_or_mock("Convergence Year", "margin_convergence_year")),
         sales_to_capital_1_5=sales_to_cap_default,
@@ -104,10 +102,10 @@ def run_valuation(cik_or_ticker):
         riskfree_rate_now=get_user_input_or_mock("Riskfree Rate", "riskfree_rate_now"),
         mature_market_erp=get_user_input_or_mock("Equity Risk Premium", "mature_market_erp"),
         wacc_initial=get_user_input_or_mock("Initial WACC", "wacc_initial"),
-        
+
         override_perpetual_growth=True,
         perpetual_growth_rate=get_user_input_or_mock("Perpetual Growth", "perpetual_growth_rate"),
-        
+
         has_employee_options=False,
         override_stable_wacc=False,
         override_tax_rate_convergence=False,
@@ -142,5 +140,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python run_parquet_valuation.py <CIK>")
         sys.exit(1)
-    
+
     run_valuation(sys.argv[1])

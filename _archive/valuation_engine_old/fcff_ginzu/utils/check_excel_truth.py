@@ -1,7 +1,8 @@
 
-import openpyxl
-import sys
 import os
+
+import openpyxl
+
 
 def check_excel_truth(file_path, sheet_name="Valuation output"):
     print(f"Loading {file_path}...")
@@ -16,11 +17,11 @@ def check_excel_truth(file_path, sheet_name="Valuation output"):
         return
 
     ws = wb[sheet_name]
-    
+
     # Mapping based on Valuation output.csv structure
     # Row 33 Column B is Estimated Value / Share
     # In openpyxl, rows are 1-based, columns are 1-based (A=1, B=2)
-    
+
     # Key cells to check in "Valuation output"
     # B33: Estimated value / share
     # B31: Value of equity in common stock
@@ -29,7 +30,7 @@ def check_excel_truth(file_path, sheet_name="Valuation output"):
     # B3: Revenues (Base)
     # B27: Cash
     # B25: Debt
-    
+
     mapping = {
         "Value per Share": "B33",
         "Value of Equity": "B31",
@@ -49,17 +50,17 @@ def check_excel_truth(file_path, sheet_name="Valuation output"):
 
     # Check Input sheet for confirmation
     input_sheet = wb["Input sheet"]
-    print(f"\n--- Key Inputs from 'Input sheet' ---")
+    print("\n--- Key Inputs from 'Input sheet' ---")
     input_mapping = {
         "Revenues (B11)": "B11",
         "Reported EBIT (B12)": "B12",
         "Capitalize R&D? (B16)": "B16",
         "Capitalize Leases? (B17)": "B17",
         "Growth Year 1 (B26)": "B26",
-        "Margin Year 1 (I26)": "I26", 
+        "Margin Year 1 (I26)": "I26",
         "Target Margin (B29)": "B29",
     }
-    
+
     for name, cell_ref in input_mapping.items():
         val = input_sheet[cell_ref].value
         print(f"{name}: {val}")
@@ -67,7 +68,7 @@ def check_excel_truth(file_path, sheet_name="Valuation output"):
     # Check R&D Sheet if available
     if "R& D converter" in wb.sheetnames:
         rd_sheet = wb["R& D converter"]
-        print(f"\n--- Key R&D Outputs ---")
+        print("\n--- Key R&D Outputs ---")
         # D39: Adjustment to Operating Income
         # D37: Amortization
         # F7: Current Year R&D

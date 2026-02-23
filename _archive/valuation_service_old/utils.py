@@ -1,5 +1,6 @@
 import math
-from typing import Any, Dict, List, Union
+from typing import Any
+
 
 def sanitize_for_json(obj: Any) -> Any:
     """

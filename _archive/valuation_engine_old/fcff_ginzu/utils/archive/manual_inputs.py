@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from valuation_engine.fcff_ginzu import GinzuInputs
 
-
 # ---------------------------------------------------------------------------
 # Single source of truth for a manual run.
 # Replace the values below with your company’s data/assumptions.

@@ -1,3 +1,4 @@
+import datetime
 from typing import Any, Dict
 
 import pandas as pd
@@ -12,31 +13,55 @@ TAX_RATES = {"US": 0.21, "United States": 0.21, "IE": 0.125, "GB": 0.25, "CN": 0
 class YahooFinanceConnector(BaseConnector):
     """Connector for fetching data from Yahoo Finance."""
 
-    def get_financials(self, ticker: str) -> Dict[str, Any]:
+    def get_financials(self, ticker: str, as_of_date: str = None) -> Dict[str, Any]:
         """Fetch raw financial statements from Yahoo Finance."""
         stock = yf.Ticker(ticker)
+        inc = stock.income_stmt
+        bal = stock.balance_sheet
+        cf = stock.cashflow
+
+        if as_of_date:
+            inc = self._filter_cols_by_date(inc, as_of_date)
+            bal = self._filter_cols_by_date(bal, as_of_date)
+            cf = self._filter_cols_by_date(cf, as_of_date)
+
         return {
-            "income_statement": stock.income_stmt.to_dict(),
-            "balance_sheet": stock.balance_sheet.to_dict(),
-            "cash_flow": stock.cashflow.to_dict(),
+            "income_statement": inc.to_dict() if not inc.empty else {},
+            "balance_sheet": bal.to_dict() if not bal.empty else {},
+            "cash_flow": cf.to_dict() if not cf.empty else {},
         }
 
-    def get_market_data(self, ticker: str) -> Dict[str, Any]:
+    def get_market_data(self, ticker: str, as_of_date: str = None) -> Dict[str, Any]:
         """Fetch market data from Yahoo Finance."""
         stock = yf.Ticker(ticker)
         info = stock.info
 
         risk_free_rate = self._get_risk_free_rate()
 
+        price = info.get("currentPrice") or info.get("regularMarketPrice")
+
+        if as_of_date:
+            try:
+                end_dt = datetime.datetime.strptime(as_of_date, "%Y-%m-%d") + datetime.timedelta(days=1)
+            except ValueError as e:
+                raise ValueError(f"Invalid as_of_date format: {as_of_date}") from e
+
+            try:
+                hist = stock.history(end=end_dt.strftime("%Y-%m-%d"))
+                if not hist.empty:
+                    price = float(hist["Close"].iloc[-1])
+            except Exception:
+                pass
+
         return {
-            "price": info.get("currentPrice") or info.get("regularMarketPrice"),
+            "price": price,
             "beta": info.get("beta"),
             "market_cap": info.get("marketCap"),
             "shares_outstanding": info.get("sharesOutstanding"),
             "risk_free_rate": risk_free_rate,
         }
 
-    def get_valuation_inputs(self, ticker: str) -> Dict[str, Any]:
+    def get_valuation_inputs(self, ticker: str, as_of_date: str = None) -> Dict[str, Any]:
         """
         Fetch and normalize data specifically for the Valuation Engine.
         Implements LTM calculations and fallback logic.
@@ -48,6 +73,25 @@ class YahooFinanceConnector(BaseConnector):
         q_bal = stock.quarterly_balance_sheet
         ann_inc = stock.financials
         info = stock.info
+
+        # --- Date Filtering ---
+        if as_of_date:
+            q_inc = self._filter_cols_by_date(q_inc, as_of_date)
+            q_bal = self._filter_cols_by_date(q_bal, as_of_date)
+            ann_inc = self._filter_cols_by_date(ann_inc, as_of_date)
+
+            # Fallback to annual balance sheet if quarterly is empty after filtering
+            if q_bal.empty:
+                ann_bal = stock.balance_sheet
+                q_bal = self._filter_cols_by_date(ann_bal, as_of_date)
+
+            try:
+                end_dt = datetime.datetime.strptime(as_of_date, "%Y-%m-%d") + datetime.timedelta(days=1)
+                hist = stock.history(end=end_dt.strftime("%Y-%m-%d"))
+                if not hist.empty:
+                    info["currentPrice"] = float(hist["Close"].iloc[-1])
+            except Exception:
+                pass
 
         data = {}
 
@@ -148,6 +192,28 @@ class YahooFinanceConnector(BaseConnector):
         return data
 
     # --- Helpers ---
+    def _filter_cols_by_date(self, df: pd.DataFrame, as_of_date: str) -> pd.DataFrame:
+        if df.empty or not as_of_date:
+            return df
+        try:
+            dt_limit = datetime.datetime.strptime(as_of_date, "%Y-%m-%d").date()
+        except ValueError as e:
+            raise ValueError(f"Invalid as_of_date format. Expected YYYY-MM-DD, got {as_of_date}") from e
+
+        valid_cols = []
+        for c in df.columns:
+            try:
+                if isinstance(c, str):
+                    c_date = datetime.datetime.strptime(c, "%Y-%m-%d").date()
+                    if c_date <= dt_limit:
+                        valid_cols.append(c)
+                elif hasattr(c, "date") and callable(c.date) and c.date() <= dt_limit:
+                    valid_cols.append(c)
+                elif hasattr(c, "date") and not callable(c.date) and c.date <= dt_limit:
+                    valid_cols.append(c)
+            except Exception:
+                pass
+        return df[valid_cols]
 
     def _get_ltm_value(self, df: pd.DataFrame, row_name: str, num_quarters: int = 4) -> float:
         """Sums `num_quarters` values for a given row."""

@@ -1,11 +1,14 @@
+from typing import Any, Dict
+
 import pytest
-from valuation_service.connectors import ConnectorFactory, BaseConnector
-from typing import Dict, Any
+
+from valuation_service.connectors import BaseConnector, ConnectorFactory
+
 
 class MockConnector(BaseConnector):
     def get_financials(self, ticker: str) -> Dict[str, Any]:
         return {"mock": "financials"}
-    
+
     def get_market_data(self, ticker: str) -> Dict[str, Any]:
         return {"mock": "market"}
 

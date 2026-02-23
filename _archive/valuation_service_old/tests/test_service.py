@@ -1,7 +1,9 @@
-import pytest
 from unittest.mock import MagicMock
+
 from valuation_service.service import ValuationService
+
 from valuation_service.connectors import BaseConnector
+
 
 def test_valuation_service_initialization():
     mock_connector = MagicMock(spec=BaseConnector)
@@ -10,7 +12,7 @@ def test_valuation_service_initialization():
 
 def test_calculate_valuation_flow():
     mock_connector = MagicMock(spec=BaseConnector)
-    
+
     # Mock data return for get_valuation_inputs
     mock_connector.get_valuation_inputs.return_value = {
         "revenues_base": 1000.0,
@@ -22,11 +24,11 @@ def test_calculate_valuation_flow():
         "stock_price": 50.0,
         "risk_free_rate": 0.04
     }
-    
+
     service = ValuationService(mock_connector)
-    
+
     result = service.calculate_valuation("AAPL", assumptions={})
-    
+
     assert result is not None
     assert "value_of_equity" in result
     # Verify the connector method was called

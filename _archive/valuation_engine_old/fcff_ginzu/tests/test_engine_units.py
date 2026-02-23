@@ -1,17 +1,17 @@
 
 import unittest
 from dataclasses import replace
+
 from valuation_engine.fcff_ginzu.engine import (
-    _compute_ebit_after_tax_with_nol,
-    _black_scholes_call_value,
-    compute_dilution_adjusted_black_scholes_option_value,
+    InputError,
     OptionInputs,
+    _black_scholes_call_value,
+    _compute_ebit_after_tax_with_nol,
     _compute_margins,
     _compute_reinvestment,
-    InputError,
-    GinzuInputs,
-    compute_ginzu
+    compute_dilution_adjusted_black_scholes_option_value,
 )
+
 
 class TestEngineUnits(unittest.TestCase):
 
@@ -21,18 +21,18 @@ class TestEngineUnits(unittest.TestCase):
         ebit = [100.0] * 11
         tax_rates = [0.25] * 11
         nol_start = 150.0
-        
+
         nol_series, ebit_after_tax = _compute_ebit_after_tax_with_nol(
             ebit=ebit, tax_rates=tax_rates, nol_start_year1=nol_start
         )
-        
+
         # Year 0 (Base): EBIT 100, tax applied = 75
         self.assertEqual(ebit_after_tax[0], 75.0)
-        
-        # Year 1: EBIT 100. NOL 150. EBIT < NOL. 
+
+        # Year 1: EBIT 100. NOL 150. EBIT < NOL.
         self.assertEqual(ebit_after_tax[1], 100.0)
         self.assertEqual(nol_series[1], 50.0)
-        
+
         # Year 2: EBIT 100. NOL 50. EBIT > NOL.
         self.assertEqual(ebit_after_tax[2], 87.5)
         self.assertEqual(nol_series[2], 0.0)
@@ -45,18 +45,18 @@ class TestEngineUnits(unittest.TestCase):
         ebit[2] = 100.0
         tax_rates = [0.25] * 11
         nol_start = 0.0
-        
+
         nol_series, ebit_after_tax = _compute_ebit_after_tax_with_nol(
             ebit=ebit, tax_rates=tax_rates, nol_start_year1=nol_start
         )
-        
+
         # Year 0: 100 -> 75
         self.assertEqual(ebit_after_tax[0], 75.0)
-        
+
         # Year 1: -50. EBIT after tax = -50. NOL = 0 - (-50) = 50.
         self.assertEqual(ebit_after_tax[1], -50.0)
         self.assertEqual(nol_series[1], 50.0)
-        
+
         # Year 2: 100. NOL 50. Taxable = 50. Tax = 12.5. EBIT after tax = 87.5.
         self.assertEqual(ebit_after_tax[2], 87.5)
         self.assertEqual(nol_series[2], 0.0)
@@ -90,7 +90,7 @@ class TestEngineUnits(unittest.TestCase):
         # With dilution, value should be slightly different than pure 10.45 * 10
         # The iteration should converge.
         self.assertTrue(val > 0)
-        
+
         # Test zero options
         inputs_zero = OptionInputs(**{**inputs.__dict__, 'options_outstanding': 0.0})
         self.assertEqual(compute_dilution_adjusted_black_scholes_option_value(inputs_zero), 0.0)
@@ -122,7 +122,7 @@ class TestEngineUnits(unittest.TestCase):
         # left_index = year + lag - 1
         # right_index = year + lag
         # For year 1, lag 0: left=0, right=1 -> Rev[1] - Rev[0] = 110 - 100 = 10
-        
+
         reinv_lag0 = _compute_reinvestment(
             revenues=revenues,
             growth_rates=[0.1]*10,
@@ -132,7 +132,7 @@ class TestEngineUnits(unittest.TestCase):
             stable_growth_rate=0.02
         )
         self.assertAlmostEqual(reinv_lag0[0], 10.0)
-        
+
         # For year 1, lag 1 (default): left=1, right=2 -> Rev[2] - Rev[1] = 121 - 110 = 11
         reinv_lag1 = _compute_reinvestment(
             revenues=revenues,
@@ -146,7 +146,7 @@ class TestEngineUnits(unittest.TestCase):
 
     def test_input_validation(self):
         from valuation_engine.fcff_ginzu import GinzuInputs, compute_ginzu
-        
+
         # Baseline valid inputs (minimal)
         valid_inputs = GinzuInputs(
             revenues_base=100, ebit_reported_base=10, book_equity=50, book_debt=50,
@@ -156,7 +156,7 @@ class TestEngineUnits(unittest.TestCase):
             sales_to_capital_1_5=2.0, sales_to_capital_6_10=2.0,
             riskfree_rate_now=0.04, wacc_initial=0.08, tax_rate_effective=0.2, tax_rate_marginal=0.25
         )
-        
+
         with self.assertRaises(InputError):
             compute_ginzu(replace(valid_inputs, revenues_base=-1))
 

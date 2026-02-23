@@ -34,7 +34,7 @@ def test_calculate_valuation_flow():
 
     assert result is not None
     assert "value_of_equity" in result
-    mock_connector.get_valuation_inputs.assert_called_once_with("AAPL")
+    mock_connector.get_valuation_inputs.assert_called_once_with("AAPL", as_of_date=None)
 
 
 def test_full_service_integration():
@@ -67,4 +67,4 @@ def test_full_service_integration():
 
     assert result["value_of_equity"] > 0
 
-    mock_connector.get_valuation_inputs.assert_called_once_with("TEST")
+    mock_connector.get_valuation_inputs.assert_called_once_with("TEST", as_of_date=None)

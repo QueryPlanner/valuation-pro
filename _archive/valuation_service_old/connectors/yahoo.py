@@ -1,7 +1,8 @@
-import yfinance as yf
+from typing import Any, Dict
+
 import pandas as pd
-import datetime
-from typing import Dict, Any, List, Optional
+import yfinance as yf
+
 from .base import BaseConnector, ConnectorFactory
 
 # Country Tax Rates (Simplified Mock)
@@ -26,7 +27,7 @@ class YahooFinanceConnector(BaseConnector):
         """Fetch market data from Yahoo Finance."""
         stock = yf.Ticker(ticker)
         info = stock.info
-        
+
         risk_free_rate = self._get_risk_free_rate()
 
         return {
@@ -43,7 +44,7 @@ class YahooFinanceConnector(BaseConnector):
         Implements LTM calculations and fallback logic.
         """
         stock = yf.Ticker(ticker)
-        
+
         # 1. Fetch Dataframes
         q_inc = stock.quarterly_financials
         q_bal = stock.quarterly_balance_sheet
@@ -91,7 +92,7 @@ class YahooFinanceConnector(BaseConnector):
             # Book Equity: Include minority interest if consolidated
             stockholders_equity = self._get_mrq_value(q_bal, 'Stockholders Equity')
             total_equity_gross_mi = self._get_mrq_value(q_bal, 'Total Equity Gross Minority Interest')
-            
+
             if total_equity_gross_mi > 0:
                 data['book_equity'] = total_equity_gross_mi
                 data['minority_interest'] = total_equity_gross_mi - stockholders_equity
@@ -102,14 +103,14 @@ class YahooFinanceConnector(BaseConnector):
 
             # Debt & Cash
             data['book_debt'] = self._get_mrq_value(q_bal, 'Total Debt')
-            
+
             cash_equiv = self._get_mrq_value(q_bal, 'Cash Cash Equivalents And Short Term Investments')
             if cash_equiv == 0:
                 c = self._get_mrq_value(q_bal, 'Cash And Cash Equivalents')
                 st = self._get_mrq_value(q_bal, 'Other Short Term Investments')
                 cash_equiv = c + st
             data['cash'] = cash_equiv
-            
+
             data['cross_holdings'] = self._get_mrq_value(q_bal, 'Investmentin Financial Assets')
         else:
             # Fallback if BS is empty
@@ -141,11 +142,11 @@ class YahooFinanceConnector(BaseConnector):
                 data['effective_tax_rate'] = eff_rate
         else:
             data['effective_tax_rate'] = 0.0
-            
+
         # 7. Metadata / Flags
         data['operating_leases_flag'] = 'no' # YF simplifies this into Debt usually
         data['risk_free_rate'] = self._get_risk_free_rate()
-        
+
         return data
 
     # --- Helpers ---
@@ -174,7 +175,7 @@ class YahooFinanceConnector(BaseConnector):
                      val = tnx['Close'].iloc[-1]
                 else:
                      val = tnx.iloc[-1, 0]
-                
+
                 if hasattr(val, 'item'): val = val.item()
                 elif hasattr(val, 'values'): val = val.values[0]
                 return float(val) / 100.0

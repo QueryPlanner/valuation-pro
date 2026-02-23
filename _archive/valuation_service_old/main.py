@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 import logging
 import time
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from valuation_service.api.endpoints import router as api_router
 
 # Setup logger

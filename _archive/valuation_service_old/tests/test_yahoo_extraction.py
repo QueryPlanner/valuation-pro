@@ -1,7 +1,10 @@
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
 import pandas as pd
+import pytest
+
 from valuation_service.connectors import YahooFinanceConnector
+
 
 @pytest.fixture
 def connector():
@@ -27,7 +30,7 @@ def test_yahoo_market_data_fallback(connector):
         instance = mock_ticker.return_value
         # Empty info
         instance.info = {}
-        
+
         with patch("valuation_service.connectors.yahoo.yf.download") as mock_download:
             # Mock empty download for TNX
             mock_download.return_value = pd.DataFrame()
@@ -48,7 +51,7 @@ def test_yahoo_market_data_integration(connector):
             "beta": 1.0,
             "marketCap": 1000000
         }
-        
+
         with patch("valuation_service.connectors.yahoo.yf.download") as mock_download:
             mock_df = pd.DataFrame({'Close': [3.5]})
             mock_download.return_value = mock_df
@@ -65,9 +68,9 @@ def test_yahoo_tnx_exception(connector):
     with patch("yfinance.Ticker") as mock_ticker:
         instance = mock_ticker.return_value
         instance.info = {}
-        
+
         with patch("valuation_service.connectors.yahoo.yf.download") as mock_download:
             mock_download.side_effect = Exception("Network Error")
-            
+
             data = connector.get_market_data("AAPL")
             assert data["risk_free_rate"] == 0.04

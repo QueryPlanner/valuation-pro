@@ -1,17 +1,18 @@
-import sys
-import os
-import json
 import math
+import os
+import sys
 
 # Add project root to sys.path to allow imports from sibling directories
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 try:
-    from yf_data_extractor import extract_data
     from valuation_engine.fcff_ginzu.engine import (
-        GinzuInputs, compute_ginzu, 
-        RnDCapitalizationInputs, compute_rnd_capitalization_adjustments
+        GinzuInputs,
+        RnDCapitalizationInputs,
+        compute_ginzu,
+        compute_rnd_capitalization_adjustments,
     )
+    from yf_data_extractor import extract_data
 except ImportError as e:
     print(f"Error importing modules: {e}")
     sys.exit(1)
@@ -43,7 +44,7 @@ def get_user_input_or_mock(prompt, key, default_val=None):
 
 def run_valuation(ticker):
     print(f"\n--- Starting Valuation for Ticker: {ticker} (Source: Yahoo Finance) ---")
-    
+
     # 1. Fetch REAL Data
     print("\n[1/3] Fetching Yahoo Finance Data...")
     try:
@@ -58,16 +59,16 @@ def run_valuation(ticker):
 
     # 2. Prepare Inputs (Merge Real + Mock)
     print("\n[2/3] Preparing Valuation Inputs...")
-    
+
     base_rev = yf_data.get('revenues_base', 0)
     reported_ebit = yf_data.get('ebit_reported_base', 0)
-    
+
     # Sales to Capital from Data
     sales_to_cap_actual = yf_data.get('sales_to_capital', 0.0)
     # Heuristic: If actual is reasonable (>0.1), use it. Else mock 2.0.
     # sales_to_cap_default = sales_to_cap_actual if sales_to_cap_actual > 0.1 else 2.0
     sales_to_cap_default = 3.0 # FORCED PARITY
-    
+
     # Stock Price from YF
     stock_price = yf_data.get('stock_price', 100.0)
 
@@ -86,7 +87,7 @@ def run_valuation(ticker):
     rnd_asset = 0.0
     rnd_ebit_adj = 0.0
     capitalize_rnd = False
-    
+
     # FORCED PARITY: Disable R&D Capitalization for comparison
     # if yf_data.get('rnd_history') and len(yf_data['rnd_history']) > 0:
     if False:
@@ -94,7 +95,7 @@ def run_valuation(ticker):
         amort_years = 5
         history = yf_data['rnd_history']
         current_rnd = yf_data.get('rnd_expense', 0)
-        
+
         past_rnd = []
         for i in range(amort_years):
             if i < len(history):
@@ -104,7 +105,7 @@ def run_valuation(ticker):
                 past_rnd.append(val)
             else:
                 past_rnd.append(0.0)
-        
+
         try:
             rnd_inputs = RnDCapitalizationInputs(
                 amortization_years=amort_years,
@@ -150,7 +151,7 @@ def run_valuation(ticker):
         capitalize_rnd=capitalize_rnd,
         rnd_asset=rnd_asset,
         rnd_ebit_adjustment=rnd_ebit_adj,
-        
+
         # Mock / Assumptions
         stock_price=stock_price,
         rev_growth_y1=get_user_input_or_mock("Revenue Growth (Y1)", "rev_growth_y1", default_val=default_rev_growth),
@@ -163,11 +164,11 @@ def run_valuation(ticker):
         riskfree_rate_now=get_user_input_or_mock("Riskfree Rate", "riskfree_rate_now"),
         mature_market_erp=get_user_input_or_mock("Equity Risk Premium", "mature_market_erp"),
         wacc_initial=get_user_input_or_mock("Initial WACC", "wacc_initial"),
-        
+
         # Stable phase overrides
         override_perpetual_growth=True,
         perpetual_growth_rate=get_user_input_or_mock("Perpetual Growth", "perpetual_growth_rate"),
-        
+
         # Defaults
         has_employee_options=False,
         override_stable_wacc=False,
@@ -208,5 +209,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python run_yf_valuation.py <TICKER>")
         sys.exit(1)
-    
+
     run_valuation(sys.argv[1])
