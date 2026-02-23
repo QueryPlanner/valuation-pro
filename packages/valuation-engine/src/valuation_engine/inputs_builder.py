@@ -154,14 +154,14 @@ def build_ginzu_inputs(
             # Compute via engine's dilution-adjusted Black-Scholes
             try:
                 option_inputs = OptionInputs(
-                    stock_price=data.get("stock_price", 0.0),
+                    stock_price=get_val("stock_price", "stock_price", 0.0),
                     strike_price=assumptions.get("options_strike_price", 0.0),
                     maturity_years=assumptions.get("options_maturity_years", 0.0),
                     volatility=assumptions.get("options_volatility", 0.0),
                     dividend_yield=assumptions.get("options_dividend_yield", 0.0),
-                    riskfree_rate=data.get("risk_free_rate", DEFAULT_RISK_FREE_RATE),
+                    riskfree_rate=get_val("riskfree_rate_now", "risk_free_rate", DEFAULT_RISK_FREE_RATE),
                     options_outstanding=assumptions.get("options_outstanding", 0.0),
-                    shares_outstanding=data.get("shares_outstanding", 1.0),
+                    shares_outstanding=get_val("shares_outstanding", "shares_outstanding", 1.0),
                 )
                 options_value = compute_dilution_adjusted_black_scholes_option_value(option_inputs)
             except Exception as e:
@@ -202,8 +202,8 @@ def build_ginzu_inputs(
         cash=cash,
         non_operating_assets=get_val("non_operating_assets", "cross_holdings", 0.0),
         minority_interests=get_val("minority_interests", "minority_interest", 0.0),
-        shares_outstanding=data.get("shares_outstanding", 1.0),
-        stock_price=data.get("stock_price", 0.0),
+        shares_outstanding=get_val("shares_outstanding", "shares_outstanding", 1.0),
+        stock_price=get_val("stock_price", "stock_price", 0.0),
         # Core levers
         rev_growth_y1=assumptions.get("rev_growth_y1", DEFAULT_REV_GROWTH),
         rev_cagr_y2_5=assumptions.get("rev_cagr_y2_5", DEFAULT_REV_GROWTH),
