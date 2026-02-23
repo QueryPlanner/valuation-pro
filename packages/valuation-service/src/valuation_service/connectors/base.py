@@ -38,7 +38,6 @@ class BaseConnector(ABC):
         pass
 
 
-
 class ConnectorFactory:
     """Simple factory to manage data connectors (Singleton Pattern)."""
 
