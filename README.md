@@ -40,6 +40,20 @@ docs/                    # Methodology & documentation
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 
+### XBRL Downloader
+The `xbrl-downloader` tool intelligently fetches financial filings from the NSE to enable exact Trailing Twelve Months (TTM) calculations (without relying on crude annualization). It specifically:
+- Prefers **Consolidated** filings over Standalone ones.
+- Targets up to 4 exact filings: **Most Recent Annual**, **Current YTD**, **Prior YTD** (by scanning up to 24 months of history), and the **Latest Balance Sheet**.
+- Saves the XML files and generates a `valuation_metadata.json` for the valuation engine.
+
+```bash
+# Download XBRL filings for a specific NSE symbol
+uv run xbrl-downloader HCLTECH
+
+# Specify a custom output directory (default: valuation_data)
+uv run xbrl-downloader INFY --output-dir my_data_folder
+```
+
 ### Setup
 
 ```bash
