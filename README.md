@@ -14,13 +14,20 @@ packages/
 │       ├── inputs_builder.py   # Canonical input preparation
 │       └── models/             # Data contracts (re-exports)
 │
-└── valuation-service/   # FastAPI REST API
-    └── src/valuation_service/
-        ├── app.py              # FastAPI application factory
-        ├── api/                # Endpoints, schemas
-        ├── connectors/         # Data source adapters (Yahoo, SEC)
-        ├── services/           # Orchestration layer
-        └── utils/              # JSON sanitization, etc.
+├── valuation-service/   # FastAPI REST API
+│   └── src/valuation_service/
+│       ├── app.py              # FastAPI application factory
+│       ├── api/                # Endpoints, schemas
+│       ├── connectors/         # Data source adapters (Yahoo, SEC)
+│       ├── services/           # Orchestration layer
+│       └── utils/              # JSON sanitization, etc.
+│
+└── xbrl-downloader/     # CLI utility to download NSE XBRL filings
+    └── src/xbrl_downloader/
+        ├── cli/                # Command-line interface
+        ├── downloader.py       # Orchestrator
+        ├── client.py           # NSE API client
+        └── selector.py         # Filing selection logic
 
 tests/                   # All tests (engine + service)
 docs/                    # Methodology & documentation
@@ -44,6 +51,9 @@ uv run pytest tests/ -v
 
 # Start development server
 uv run uvicorn valuation_service.app:app --reload
+
+# Download XBRL filings for a company (e.g., BPCL)
+uv run xbrl-downloader BPCL
 
 # Lint code
 uv run ruff check packages/ tests/

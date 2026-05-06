@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "xbrl-downloader"
+version = "0.1.0"
+description = "A utility to download specific XBRL filings for valuation."
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.31.0",
+    "pydantic>=2.0.0",
+]
+
+[project.scripts]
+xbrl-downloader = "xbrl_downloader.cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/xbrl_downloader"]
