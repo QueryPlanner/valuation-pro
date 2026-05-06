@@ -52,7 +52,7 @@ class NSEClient:
 
     def get_traditional_filings(self, symbol: str) -> list[dict]:
         """Fetch older traditional corporate financial results from NSE API."""
-        url = f"{self.base_url}/api/corporates-financial-results?index=equities&symbol={symbol}"
+        url = f"{self.base_url}/api/corporates-financial-results?index=equities&symbol={symbol}&period=24Months"
         try:
             response = self.session.get(url, timeout=10)
             response.raise_for_status()
