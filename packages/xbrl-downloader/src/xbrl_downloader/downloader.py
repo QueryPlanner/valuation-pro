@@ -59,7 +59,7 @@ class DownloaderOrchestrator:
 
         for key, filing in files_to_download.items():
             date_str = filing.date.strftime("%Y-%m-%d")
-            ext = filing.url.split(".")[-1]
+            ext = filing.url.split("?")[0].split(".")[-1]
             if len(ext) > 4:
                 ext = "xml"
             filename = f"{self.symbol}_{key}_{date_str}.{ext}"

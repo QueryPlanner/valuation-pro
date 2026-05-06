@@ -8,6 +8,9 @@ from xbrl_downloader.models import FilingSource
 logger = logging.getLogger(__name__)
 
 
+_INVALID_TRADITIONAL_XBRL_URL = "https://nsearchives.nseindia.com/corporate/xbrl/-"
+
+
 class NSEClient:
     """Client for interacting with NSE India APIs to fetch XBRL filings."""
 
@@ -75,8 +78,7 @@ class NSEClient:
                     {
                         "date_str": f.get("qe_Date", ""),
                         "xbrl_url": f.get("xbrl"),
-                        "type": f.get("type", ""),
-                        "consolidated": f.get("consolidated", ""),
+                        "type": f.get("type", "") + " " + str(f.get("consolidated", "")),
                         "source": FilingSource.INTEGRATED,
                     }
                 )
@@ -84,12 +86,13 @@ class NSEClient:
         logger.info("Fetching traditional filing data (Older format)...")
         for f in self.get_traditional_filings(symbol):
             url = f.get("xbrl")
-            if url and url != "https://nsearchives.nseindia.com/corporate/xbrl/-":
+            if url and url != _INVALID_TRADITIONAL_XBRL_URL:
                 filings.append(
                     {
                         "date_str": f.get("toDate", ""),
                         "xbrl_url": url,
                         "type": "Financial Results " + str(f.get("consolidated", "")),
+                        "financial_year": f.get("financialYear", ""),
                         "source": FilingSource.TRADITIONAL,
                     }
                 )

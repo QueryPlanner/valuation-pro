@@ -22,15 +22,23 @@ class FilingSelector:
         return None
 
     @staticmethod
-    def calculate_fraction(month: int) -> float:
+    def calculate_fraction(month: int, year_end_month: int = 3) -> float:
         """Calculate years since last annual filing based on the current month."""
-        if month in [4, 5, 6]:
+        if month == year_end_month:
+            return 1.0
+
+        diff = month - year_end_month
+        if diff < 0:
+            diff += 12
+
+        # Quarter ends are generally 3 months apart
+        if diff in [1, 2, 3]:
             return 0.25
-        elif month in [7, 8, 9]:
+        elif diff in [4, 5, 6]:
             return 0.50
-        elif month in [10, 11, 12]:
+        elif diff in [7, 8, 9]:
             return 0.75
-        elif month in [1, 2, 3]:
+        elif diff in [10, 11, 12]:
             return 1.00
         return 0.0
 
@@ -49,7 +57,7 @@ class FilingSelector:
             if "GOVERNANCE" in url.upper() or "governance" in ftype.lower():
                 continue
 
-            is_consolidated = "Consolidated" in ftype or "Consolidated" in f.get("consolidated", "")
+            is_consolidated = "Consolidated" in ftype
 
             valid_filings.append(
                 FilingMetadata(
@@ -72,9 +80,22 @@ class FilingSelector:
             logger.warning("No valid financial XBRL filings found.")
             return None
 
+        year_end_month = 3
+        for f in raw_filings:
+            fy = f.get("financial_year", "")
+            if fy and "To" in fy:
+                try:
+                    end_str = fy.split("To")[-1].strip()
+                    end_date = self.parse_date(end_str)
+                    if end_date:
+                        year_end_month = end_date.month
+                        break
+                except Exception:
+                    continue
+
         unique_dates = sorted({f.date for f in valid_filings}, reverse=True)
         most_recent_date = unique_dates[0]
-        fraction = self.calculate_fraction(most_recent_date.month)
+        fraction = self.calculate_fraction(most_recent_date.month, year_end_month)
 
         def get_best_file(target_date: datetime) -> Optional[FilingMetadata]:
             files_for_date = [f for f in valid_filings if f.date == target_date]
@@ -95,10 +116,14 @@ class FilingSelector:
         if current_file:
             targets.current_ytd = current_file
 
-        # 2. Latest Balance Sheet / Cash Flow (Most recent September or March)
+        # 2. Latest Balance Sheet / Cash Flow (Most recent Half-Yearly or Annual)
+        half_year_month = (year_end_month + 6) % 12
+        if half_year_month == 0:
+            half_year_month = 12
+
         latest_bs_date = None
         for d in unique_dates:
-            if d.month in [3, 9]:
+            if d.month in [year_end_month, half_year_month]:
                 latest_bs_date = d
                 break
 
@@ -112,13 +137,17 @@ class FilingSelector:
             # But having them defined explicitly is fine.
             return targets
 
-        # 3. Most Recent Annual (March of current or previous calendar year)
-        annual_year = most_recent_date.year if most_recent_date.month > 3 else most_recent_date.year - 1
-        annual_date = datetime(annual_year, 3, 31)
+        # 3. Most Recent Annual (Year End Month of current or previous calendar year)
+        annual_date = None
+        for d in unique_dates:
+            if d.month == year_end_month and d <= most_recent_date:
+                annual_date = d
+                break
 
-        annual_file = get_best_file(annual_date)
-        if annual_file:
-            targets.annual = annual_file
+        if annual_date:
+            annual_file = get_best_file(annual_date)
+            if annual_file:
+                targets.annual = annual_file
 
         # 4. Prior YTD (Exact same month, previous year)
         prior_date = datetime(most_recent_date.year - 1, most_recent_date.month, most_recent_date.day)
