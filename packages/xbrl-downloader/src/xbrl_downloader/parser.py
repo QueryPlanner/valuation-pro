@@ -40,25 +40,17 @@ class XBRLParser:
 
             # Extract dimensions (segments and scenarios)
             dimensions = {}
-            entity = context.find("xbrli:entity", self.namespaces)
-            if entity is not None:
-                segment = entity.find("xbrli:segment", self.namespaces)
-                if segment is not None:
-                    for explicit_member in segment.findall("xbrldi:explicitMember", self.namespaces):
-                        dim_attr = explicit_member.attrib.get("dimension")
-                        if dim_attr and explicit_member.text:
-                            dim = dim_attr.split(":")[-1]
-                            member = explicit_member.text.split(":")[-1]
-                            dimensions[dim] = member
 
-            scenario = context.find("xbrli:scenario", self.namespaces)
-            if scenario is not None:
-                for explicit_member in scenario.findall("xbrldi:explicitMember", self.namespaces):
-                    dim_attr = explicit_member.attrib.get("dimension")
-                    if dim_attr and explicit_member.text:
-                        dim = dim_attr.split(":")[-1]
-                        member = explicit_member.text.split(":")[-1]
-                        dimensions[dim] = member
+            def _extract_dims(container):
+                if container is not None:
+                    for em in container.findall("xbrldi:explicitMember", self.namespaces):
+                        d_attr = em.attrib.get("dimension")
+                        if d_attr and em.text:
+                            dimensions[d_attr.split(":")[-1]] = em.text.split(":")[-1]
+
+            entity = context.find("xbrli:entity", self.namespaces)
+            _extract_dims(entity.find("xbrli:segment", self.namespaces) if entity is not None else None)
+            _extract_dims(context.find("xbrli:scenario", self.namespaces))
 
             context_info = {"dimensions": dimensions}
 
@@ -126,7 +118,7 @@ class XBRLParser:
 
                 # Try to cast to number
                 try:
-                    if "." in value:
+                    if "." in value or "e" in value.lower():
                         parsed_value = float(value)
                     else:
                         parsed_value = int(value)
@@ -143,7 +135,7 @@ class XBRLParser:
                 # Append dimension string to the key to prevent overwriting
                 metric_key = tag
                 if dimensions:
-                    dim_str = ",".join(f"{k}={v}" for k, v in dimensions.items())
+                    dim_str = ",".join(f"{k}={v}" for k, v in sorted(dimensions.items()))
                     metric_key = f"{tag} [{dim_str}]"
 
                 if period_str not in result:

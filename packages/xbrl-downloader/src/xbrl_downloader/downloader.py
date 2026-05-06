@@ -87,8 +87,8 @@ class DownloaderOrchestrator:
 
                         parsed_json_path = str(json_filepath)
                         logger.info(f"Parsed and saved JSON to {json_filename}")
-                except Exception as e:
-                    logger.error(f"Failed to parse {filename}: {e}")
+                except Exception:
+                    logger.exception(f"Failed to parse {filename}")
 
                 metadata.files[key] = DownloadedFile(
                     date=date_str,
