@@ -76,6 +76,7 @@ class NSEClient:
                         "date_str": f.get("qe_Date", ""),
                         "xbrl_url": f.get("xbrl"),
                         "type": f.get("type", ""),
+                        "consolidated": f.get("consolidated", ""),
                         "source": FilingSource.INTEGRATED,
                     }
                 )
