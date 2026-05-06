@@ -98,49 +98,79 @@ class XBRLParser:
         """
         contexts = self._extract_contexts()
 
+        # Pre-pass: extract descriptions to avoid data loss and provide context
+        descriptions_by_context: Dict[str, Dict[str, str]] = {}
+        for elem in self.root.iter():
+            if "contextRef" not in elem.attrib:
+                continue
+            
+            tag = elem.tag.split("}")[-1]
+            if tag.startswith("DescriptionOf") and elem.text:
+                context_id = elem.attrib["contextRef"]
+                base_tag = tag[len("DescriptionOf"):]
+                
+                if context_id not in descriptions_by_context:
+                    descriptions_by_context[context_id] = {}
+                descriptions_by_context[context_id][base_tag] = elem.text.strip()
+
         # Initialize result structure
         result: Dict[str, Dict[str, Any]] = {}
 
         for elem in self.root.iter():
-            if "contextRef" in elem.attrib:
-                # Strip the namespace from the tag
-                tag = elem.tag.split("}")[-1]
-                context_id = elem.attrib["contextRef"]
-                value = elem.text
+            if "contextRef" not in elem.attrib:
+                continue
 
-                # Ignore tags without text values (e.g. containers)
-                if value is None:
+            # Strip the namespace from the tag
+            tag = elem.tag.split("}")[-1]
+            context_id = elem.attrib["contextRef"]
+            value = elem.text
+
+            # Ignore tags without text values (e.g. containers)
+            if value is None:
+                continue
+
+            value = value.strip()
+            if not value:
+                continue
+
+            # Skip description tags as standalone metrics if they are used as modifiers
+            if tag.startswith("DescriptionOf"):
+                base_tag = tag[len("DescriptionOf"):]
+                if context_id in descriptions_by_context and base_tag in descriptions_by_context[context_id]:
                     continue
 
-                value = value.strip()
-                if not value:
-                    continue
+            # Try to cast to number
+            try:
+                if "." in value or "e" in value.lower():
+                    parsed_value = float(value)
+                else:
+                    parsed_value = int(value)
+            except ValueError:
+                parsed_value = value
 
-                # Try to cast to number
-                try:
-                    if "." in value or "e" in value.lower():
-                        parsed_value = float(value)
-                    else:
-                        parsed_value = int(value)
-                except ValueError:
-                    parsed_value = value
+            context_info = contexts.get(context_id)
+            if not context_info:
+                continue
 
-                context_info = contexts.get(context_id)
-                if not context_info:
-                    continue
+            period_str = context_info["period_str"]
+            dimensions = context_info.get("dimensions", {})
+            desc_value = descriptions_by_context.get(context_id, {}).get(tag)
 
-                period_str = context_info["period_str"]
-                dimensions = context_info.get("dimensions", {})
+            # Append dimension string to the key to prevent overwriting
+            metric_key = tag
+            if dimensions or desc_value:
+                modifiers = []
+                if desc_value:
+                    modifiers.append(f"Description='{desc_value}'")
+                for k, v in sorted(dimensions.items()):
+                    modifiers.append(f"{k}={v}")
 
-                # Append dimension string to the key to prevent overwriting
-                metric_key = tag
-                if dimensions:
-                    dim_str = ",".join(f"{k}={v}" for k, v in sorted(dimensions.items()))
-                    metric_key = f"{tag} [{dim_str}]"
+                modifier_str = ",".join(modifiers)
+                metric_key = f"{tag} [{modifier_str}]"
 
-                if period_str not in result:
-                    result[period_str] = {}
+            if period_str not in result:
+                result[period_str] = {}
 
-                result[period_str][metric_key] = parsed_value
+            result[period_str][metric_key] = parsed_value
 
         return result
