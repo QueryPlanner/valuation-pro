@@ -54,6 +54,11 @@ uv run xbrl-downloader HCLTECH
 uv run xbrl-downloader INFY --output-dir my_data_folder
 ```
 
+### AI Extraction Pipeline
+The project includes an AI pipeline that extracts inputs directly from XBRL data into the valuation schema. We use **Gemini 3 Flash Preview** (via OpenRouter) due to its excellent instruction following capabilities for accounting adjustments.
+- **Core EBIT Calculation**: We compute "pure" EBIT that strictly excludes exceptional items and non-operating income to represent sustainable, recurring earning power: `ProfitBeforeExceptionalItemsAndTax - OtherIncome + FinanceCosts`.
+- **Marginal Tax Rate**: Defaulted to 30% for India.
+
 ### Setup
 
 ```bash
