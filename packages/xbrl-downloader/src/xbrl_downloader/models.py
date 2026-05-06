@@ -34,6 +34,7 @@ class DownloadedFile(BaseModel):
     date: str
     path: str
     original_url: str
+    parsed_json_path: Optional[str] = None
 
 
 class ValuationMetadata(BaseModel):

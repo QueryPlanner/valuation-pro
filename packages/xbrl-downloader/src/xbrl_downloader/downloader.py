@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -5,6 +6,7 @@ from typing import Optional
 
 from xbrl_downloader.client import NSEClient
 from xbrl_downloader.models import DownloadedFile, ValuationMetadata
+from xbrl_downloader.parser import XBRLParser
 from xbrl_downloader.selector import FilingSelector
 
 logger = logging.getLogger(__name__)
@@ -70,10 +72,29 @@ class DownloaderOrchestrator:
                 with open(filepath, "wb") as f:
                     f.write(content)
                 logger.info(f"Downloaded {filename}")
+
+                # Parse the XML and save as JSON
+                parsed_json_path = None
+                try:
+                    if ext == "xml":
+                        parser = XBRLParser(filepath)
+                        parsed_data = parser.parse()
+
+                        json_filename = f"{self.symbol}_{key}_{date_str}.json"
+                        json_filepath = self.output_dir / json_filename
+                        with open(json_filepath, "w", encoding="utf-8") as jf:
+                            json.dump(parsed_data, jf, indent=2)
+
+                        parsed_json_path = str(json_filepath)
+                        logger.info(f"Parsed and saved JSON to {json_filename}")
+                except Exception as e:
+                    logger.error(f"Failed to parse {filename}: {e}")
+
                 metadata.files[key] = DownloadedFile(
                     date=date_str,
                     path=str(filepath),
                     original_url=filing.url,
+                    parsed_json_path=parsed_json_path,
                 )
             else:
                 logger.error(f"Failed to download {filename}")
