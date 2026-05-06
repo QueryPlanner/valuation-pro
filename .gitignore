@@ -235,3 +235,10 @@ conductor/
 
 .gemini/
 gha-creds-*.json
+.gstack/
+
+# Data and output directories
+latest_data/
+valuation_data/
+valuation_inputs/
+xbrl_downloads/
