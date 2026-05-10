@@ -169,7 +169,7 @@ class YahooFinanceConnector(BaseConnector):
         if not shares and not q_bal.empty:
             shares = self._get_mrq_value(q_bal, "Ordinary Shares Number")
         data["shares_outstanding"] = float(shares) if shares else 0.0
-        data["stock_price"] = info.get("currentPrice", 0.0)
+        data["stock_price"] = info.get("currentPrice") or info.get("regularMarketPrice") or 0.0
 
         # 6. Tax Rates
         country = info.get("country", "US")
