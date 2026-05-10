@@ -103,12 +103,12 @@ class XBRLParser:
         for elem in self.root.iter():
             if "contextRef" not in elem.attrib:
                 continue
-            
+
             tag = elem.tag.split("}")[-1]
             if tag.startswith("DescriptionOf") and elem.text:
                 context_id = elem.attrib["contextRef"]
-                base_tag = tag[len("DescriptionOf"):]
-                
+                base_tag = tag[len("DescriptionOf") :]
+
                 if context_id not in descriptions_by_context:
                     descriptions_by_context[context_id] = {}
                 descriptions_by_context[context_id][base_tag] = elem.text.strip()
@@ -135,7 +135,7 @@ class XBRLParser:
 
             # Skip description tags as standalone metrics if they are used as modifiers
             if tag.startswith("DescriptionOf"):
-                base_tag = tag[len("DescriptionOf"):]
+                base_tag = tag[len("DescriptionOf") :]
                 if context_id in descriptions_by_context and base_tag in descriptions_by_context[context_id]:
                     continue
 
