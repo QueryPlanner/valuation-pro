@@ -66,7 +66,7 @@ class NSEClient:
         """Fetch newer integrated filing results from NSE API."""
         url = f"{self.base_url}/api/integrated-filing-results?symbol={symbol}"
         try:
-            response = self.session.get(url, timeout=10)
+            response = self.session.get(url, timeout=30)
             response.raise_for_status()
             data = response.json()
             return data.get("data", [])
@@ -78,7 +78,7 @@ class NSEClient:
         """Fetch older traditional corporate financial results from NSE API."""
         url = f"{self.base_url}/api/corporates-financial-results?index=equities&symbol={symbol}&period=24Months"
         try:
-            response = self.session.get(url, timeout=10)
+            response = self.session.get(url, timeout=30)
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
