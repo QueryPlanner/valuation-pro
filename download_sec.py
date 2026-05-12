@@ -3,7 +3,7 @@ import requests
 headers = {"User-Agent": "ValuationPro/1.0 (valuation@example.com)"}
 
 # search CIK for Wipro
-response = requests.get("https://www.sec.gov/files/company_tickers.json", headers=headers)
+response = requests.get("https://www.sec.gov/files/company_tickers.json", headers=headers, timeout=10)
 data = response.json()
 cik = None
 for key, value in data.items():
@@ -16,14 +16,14 @@ print(f"Wipro CIK: {cik}")
 if cik:
     # Get latest filings
     subs_url = f"https://data.sec.gov/submissions/CIK{cik}.json"
-    subs_response = requests.get(subs_url, headers=headers)
+    subs_response = requests.get(subs_url, headers=headers, timeout=10)
     subs_data = subs_response.json()
     
     recent = subs_data['filings']['recent']
     
     # find latest 20-F
     print("Latest 20-F:")
-    for form, date, acc_no, doc in zip(recent['form'], recent['filingDate'], recent['accessionNumber'], recent['primaryDocument']):
+    for form, date, acc_no, doc in zip(recent['form'], recent['filingDate'], recent['accessionNumber'], recent['primaryDocument'], strict=True):
         if form == '20-F':
             acc_no_no_dash = acc_no.replace("-", "")
             url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{acc_no_no_dash}/{doc}"
@@ -32,7 +32,7 @@ if cik:
             
     print("Latest 6-K:")
     count = 0
-    for form, date, acc_no, doc in zip(recent['form'], recent['filingDate'], recent['accessionNumber'], recent['primaryDocument']):
+    for form, date, acc_no, doc in zip(recent['form'], recent['filingDate'], recent['accessionNumber'], recent['primaryDocument'], strict=True):
         if form == '6-K':
             acc_no_no_dash = acc_no.replace("-", "")
             url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{acc_no_no_dash}/{doc}"

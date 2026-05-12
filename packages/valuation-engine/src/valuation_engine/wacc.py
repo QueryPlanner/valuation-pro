@@ -81,7 +81,7 @@ def load_industry_betas():
         return None
     df = pd.read_csv(path)
     # Convert to numeric, coerce errors to NaN
-    df["Unlevered Beta"] = pd.to_numeric(df["Unlevered Beta"], errors="coerce")
+    df["Unlevered Beta"] = pd.to_numeric(df["Unlevered Beta"], errors="coerce").fillna(1.0)
     # create dictionary mapping industry name to unlevered beta
     return pd.Series(df["Unlevered Beta"].values, index=df["Industry Name"]).to_dict()
 
@@ -125,7 +125,7 @@ def calculate_bottom_up_wacc(
         revenue_by_region = {}
 
     # 1. Cost of Debt
-    is_large_firm = revenues > 500  # Assume $500M is large firm threshold
+    is_large_firm = revenues > 500e6  # Assume $500M threshold in absolute units
 
     default_spread = 0.0
     if debt_rating != "N/A":

@@ -340,7 +340,7 @@ html_content = f"""
 </html>
 """
 
-with open("wipro_valuation_report.html", "w") as f:
+with open("wipro_valuation_report.html", "w", encoding="utf-8") as f:
     f.write(html_content)
 
 print("Report generated: wipro_valuation_report.html")
