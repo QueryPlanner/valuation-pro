@@ -204,6 +204,8 @@ docker-compose.override.yml
 ########################
 *secrets/
 **/*.env
+.env
+credentials.json
 
 # Ignore the chat history
 ##########################
