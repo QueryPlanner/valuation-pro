@@ -244,3 +244,7 @@ latest_data/
 valuation_data/
 valuation_inputs/
 xbrl_downloads/
+
+# Google API and Auth
+client_secret*.json
+token.json
