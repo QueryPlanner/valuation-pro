@@ -22,7 +22,7 @@ def download_and_upload_pdf(client, url, display_name):
         # We use follow_redirects and a longer timeout for large PDFs
         # Add a user-agent to avoid getting blocked by SEC servers
         headers = {
-            "User-Agent": "Chirag Patil chiragnpatil@gmail.com"
+            "User-Agent": os.environ.get("SEC_USER_AGENT", "FinancialBot/1.0 (contact@example.com)")
         }
         
         if file_ext in ['htm', 'html']:
@@ -37,7 +37,7 @@ def download_and_upload_pdf(client, url, display_name):
             with sync_playwright() as p:
                 browser = p.chromium.launch()
                 page = browser.new_page()
-                page.goto(f"file://{htm_path.absolute()}", wait_until='networkidle', timeout=120000)
+                page.goto(htm_path.absolute().as_uri(), wait_until='networkidle', timeout=120000)
                 page.pdf(path=str(pdf_path))
                 browser.close()
             display_name = pdf_display_name

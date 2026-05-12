@@ -11,21 +11,36 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 def upload_sheet(company_name, excel_file_path):
     creds = None
-    # The file token.json stores the user's access and refresh tokens
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
     
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'client_secret_2_552117566971-h6q5mhlra2fdd4jbu17u75oemrjks0eo.apps.googleusercontent.com.json', SCOPES)
-            creds = flow.run_local_server(port=8080)
-        # Save the credentials for the next run
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
+    # Check for service account first (recommended for headless/automated environments)
+    service_account_path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_PATH")
+    if service_account_path and os.path.exists(service_account_path):
+        from google.oauth2 import service_account
+        creds = service_account.Credentials.from_service_account_file(service_account_path, scopes=SCOPES)
+    else:
+        # Fallback to user credentials
+        # The file token.json stores the user's access and refresh tokens
+        if os.path.exists('token.json'):
+            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        
+        # If there are no (valid) credentials available, let the user log in.
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                client_secret_path = os.environ.get("GOOGLE_CLIENT_SECRET_PATH", "client_secret.json")
+                if not os.path.exists(client_secret_path):
+                    raise FileNotFoundError(
+                        f"Missing credentials. Please set GOOGLE_SERVICE_ACCOUNT_PATH, "
+                        f"or provide token.json, or provide {client_secret_path} for local auth."
+                    )
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    client_secret_path, SCOPES)
+                print("Warning: Attempting interactive authentication. This will hang in a headless environment.")
+                creds = flow.run_local_server(port=8080)
+            # Save the credentials for the next run
+            with open('token.json', 'w') as token:
+                token.write(creds.to_json())
 
     try:
         service = build('drive', 'v3', credentials=creds)
