@@ -204,6 +204,8 @@ docker-compose.override.yml
 ########################
 *secrets/
 **/*.env
+.env
+credentials.json
 
 # Ignore the chat history
 ##########################
@@ -242,3 +244,7 @@ latest_data/
 valuation_data/
 valuation_inputs/
 xbrl_downloads/
+
+# Google API and Auth
+client_secret*.json
+token.json
